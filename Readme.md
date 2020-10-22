@@ -1,5 +1,43 @@
 # NAT Project
+## Example 
+Scroll down for more information about how to run! 
 
+Run packets in one terminal window: 
+``` sh 
+$ packets 
+``` 
+In another terminal window, add a mapping using control, for example: 
+``` sh 
+$ control 10.0.0.252 8009 2.2.2.2 80  
+``` 
+This should print out the following in the terminal window capturing packets to confirm a control packet was received, it will print out the current mapping (for now as a sanity check):
+
+``` sh 
+$ packets
+Capturing Packets
+map[10.0.0.252/8009:2.2.2.2/80]
+``` 
+
+On my computer, this mapping is used for some programs internally so we do not need to do anything to see packets with 10.0.0.252/8009 going through and being rewritten. We can see what is happening through our program: 
+
+
+``` sh 
+Mapping Found!
+    Original Source: 10.0.0.252:8009
+    	 New Source: 2.2.2.2:80
+        Destination: 10.0.0.123
+```
+We can verify that a packet with the new source IP and source port is being written using wireshark: 
+
+``` 
+Frame 3450: 176 bytes on wire (1408 bits), 176 bytes captured (1408 bits) on interface en0, id 0
+
+Internet Protocol Version 4, Src: 2.2.2.2, Dst: 10.0.0.123
+
+Transmission Control Protocol, Src Port: 80, Dst Port: 58453, Seq: 1, Ack: 1, Len: 110
+``` 
+
+--- 
 ## How to Run 
 ### Creating Control Packets 
 This will create control packets to send. For now the only control packet 
@@ -60,40 +98,11 @@ This is just as a sanity check and for checking the proper operation.
 In addition, there are test files implemented in order to test the functionality of every part of the project. The are located in each of the subdirectories in `pkg`, and end with `_test.go`. 
 
 ---
-## Example 
-Run packets in one terminal window: 
-``` sh 
-$ packets 
-``` 
-In another terminal window, add a mapping using control, for example: 
-``` sh 
-$ control 1.1.1.1 80 2.2.2.2 80  
-``` 
-This should print out the following in the terminal window capturing packets to confirm a control packet was received, it will print out the current mapping (for now as a sanity check):
 
-``` sh 
-$ packets
-Capturing Packets
-map[1.1.1.1/80:2.2.2.2/80]
-map[1.1.1.1/80:2.2.2.2/80]
-``` 
-
-Now, we can send out a packet with a destination of 1.1.1.1 with the following: 
-``` sh 
-$ curl 1.1.1.1 
-``` 
-which will cause the capturing packet program to detect that a mapping exists which will print out the following: 
-``` sh 
-Mapping Found!
-    Original Source: 1.1.1.1:80
-    	 New Source: 2.2.2.2:80
-```
-
---- 
 ## Left Todo
 - parse port from TCP/UDP header under IPv6 header 
 - implement additional control packets (should also figure out what additional control packets would be useful) 
-- when a mapping is found, update the packet with the new ip address and port and send it out 
 - be able to determine which packets are coming in vs. which was are going out 
     - so that we know whether or not to overwrite/compare the source IP/Port or the destination IP/Port 
 - implement mutex locks on the NAT mapping so that we do not run into any weird situations 
+- improve mapping code to use []byte or a defined struct to avoid using strings 
