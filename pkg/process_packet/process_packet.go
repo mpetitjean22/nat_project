@@ -79,3 +79,37 @@ func GetEthProtocol(data []byte) (uint16, error) {
 	ethernetType := binary.BigEndian.Uint16(data[12:14])
 	return ethernetType, nil
 }
+
+/* Assumes that data is a valid packet with IPv4 on top of UDP/TCP */
+func WriteDstIP(data []byte) []byte {
+	version := data[14] >> 4
+
+	if version == 4 {
+		endEthHeader := 14
+		endIPHeader := (uint8(data[14]) & 0x0F) * 4
+		endIPEthHeaders := endEthHeader + int(endIPHeader)
+
+		newPacket := make([]byte, len(data))
+
+		sourceIP := []byte{0x02, 0x02, 0x02, 0x02} // hard coded for now
+		sourcePort := []byte{0x00, 0x50}
+
+		// copy eth header
+		copy(newPacket[:14], data[:14])
+
+		// copy ipv4 header (with new source IP)
+		copy(newPacket[14:26], data[14:26])
+		copy(newPacket[26:30], sourceIP)
+		copy(newPacket[30:endIPEthHeaders], data[30:endIPEthHeaders])
+
+		// copy tcp/udp header (with new dest port)
+		copy(newPacket[endIPEthHeaders:endIPEthHeaders+2], sourcePort)
+
+		// copy rest of packet
+		copy(newPacket[endIPEthHeaders+2:], data[endIPEthHeaders+2:])
+
+		return newPacket
+	}
+
+	return nil
+}

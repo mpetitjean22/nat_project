@@ -23,6 +23,19 @@ var (
 	handle       *pcap.Handle
 )
 
+func sendPacket(rawPacket []byte) {
+	handle, err = pcap.OpenLive(device, snapshot_len, promiscuous, timeout)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer handle.Close()
+
+	err = handle.WritePacketData(rawPacket)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func main() {
 	// Open device
 	handle, err = pcap.OpenLive(device, snapshot_len, promiscuous, timeout)
@@ -66,9 +79,16 @@ func main() {
 			} else {
 				newSrcIP, newSrcPort, err := nat.GetMapping(srcIP.String(), strconv.Itoa(int(srcPort)))
 				if err == nil {
+					/* print statements for debugging */
 					fmt.Println("Mapping Found!")
 					fmt.Printf("    Original Source: %s:%d\n", srcIP, srcPort)
-					fmt.Printf("    	 New Source: %s:%s \n\n", newSrcIP, newSrcPort)
+					fmt.Printf("    	 New Source: %s:%s \n", newSrcIP, newSrcPort)
+					fmt.Printf("        Destination: %s \n \n", dstIP)
+
+					newPacketData := process_packet.WriteDstIP(packet_data)
+					if newPacketData != nil {
+						sendPacket(newPacketData)
+					}
 				}
 			}
 		}
