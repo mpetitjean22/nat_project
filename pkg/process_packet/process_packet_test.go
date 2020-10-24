@@ -1,7 +1,6 @@
 package process_packet
 
 import (
-	"net"
 	"testing"
 
 	"github.com/google/gopacket"
@@ -12,7 +11,7 @@ func createGoPacket(data []byte) gopacket.Packet {
 	return gopacket.NewPacket(data, layers.LayerTypeEthernet, gopacket.Default)
 }
 
-func getGoPacketValues(packet gopacket.Packet, t *testing.T) (ethType uint16, srcIP net.IP, dstIP net.IP, srcPort uint16, dstPort uint16) {
+func getGoPacketValues(packet gopacket.Packet, t *testing.T) (ethType uint16, srcIP [4]byte, dstIP [4]byte, srcPort [2]byte, dstPort [2]byte) {
 	ethernetLayer := packet.Layer(layers.LayerTypeEthernet)
 	if ethernetLayer == nil {
 		t.Errorf("No Ethernet Type")
@@ -21,30 +20,46 @@ func getGoPacketValues(packet gopacket.Packet, t *testing.T) (ethType uint16, sr
 	ethType = uint16(ethernet.EthernetType)
 
 	ip4Layer := packet.Layer(layers.LayerTypeIPv4)
-	ip6Layer := packet.Layer(layers.LayerTypeIPv6)
+	// ip6Layer := packet.Layer(layers.LayerTypeIPv6)
 
 	if ip4Layer != nil {
 		ip, _ := ip4Layer.(*layers.IPv4)
-		srcIP = ip.SrcIP
-		dstIP = ip.DstIP
-	} else if ip6Layer != nil {
+		copy(srcIP[:], ip.SrcIP)
+		copy(dstIP[:], ip.DstIP)
+	} else {
+		t.Errorf("Not IPv4")
+	}
+	/* Revisit IPv6!
+	else if ip6Layer != nil {
 		ip, _ := ip6Layer.(*layers.IPv6)
 		srcIP = ip.SrcIP
 		dstIP = ip.DstIP
-	} else {
-		t.Errorf("Not IPv4 or IPv6")
 	}
+	*/
 
 	tcpLayer := packet.Layer(layers.LayerTypeTCP)
 	udpLayer := packet.Layer(layers.LayerTypeUDP)
 	if tcpLayer != nil {
 		tcp, _ := tcpLayer.(*layers.TCP)
-		srcPort = uint16(tcp.SrcPort)
-		dstPort = uint16(tcp.DstPort)
+
+		h, l := uint8(tcp.SrcPort>>8), uint8(tcp.SrcPort&0xff)
+		srcPort[0] = h
+		srcPort[1] = l
+
+		h, l = uint8(tcp.DstPort>>8), uint8(tcp.DstPort&0xff)
+		dstPort[0] = h
+		dstPort[1] = l
 	} else if udpLayer != nil {
 		udp, _ := udpLayer.(*layers.UDP)
-		srcPort = uint16(udp.SrcPort)
-		dstPort = uint16(udp.DstPort)
+
+		h, l := uint8(udp.SrcPort>>8), uint8(udp.SrcPort&0xff)
+		srcPort[0] = h
+		srcPort[1] = l
+
+		h, l = uint8(udp.DstPort>>8), uint8(udp.DstPort&0xff)
+		dstPort[0] = h
+		dstPort[1] = l
+
 	} else {
 		t.Errorf("Not UDP or TCP")
 	}
@@ -76,10 +91,10 @@ func TestIPv4Packets(t *testing.T) {
 		if err != nil {
 			t.Errorf("Testcase %d: source/dest IP: %v", idx, err)
 		}
-		if !srcIP.Equal(expSrcIP) {
+		if srcIP != expSrcIP {
 			t.Errorf("Testcase %d: source IP: got %v expecting %v", idx, srcIP, expSrcIP)
 		}
-		if !dstIP.Equal(expDstIP) {
+		if dstIP != expDstIP {
 			t.Errorf("Testcase %d: dest IP: got %v expecting %v", idx, dstIP, expDstIP)
 		}
 

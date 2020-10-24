@@ -2,7 +2,6 @@ package nat
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,47 +10,67 @@ import (
 func TestAddMapping(t *testing.T) {
 	nat_table = nil
 
-	AddMapping("1.1.1.1", "80", "2.2.2.2", "80")
+	AddMapping([4]byte{0x01, 0x01, 0x01, 0x01}, [2]byte{0x00, 0x50}, [4]byte{0x02, 0x02, 0x02, 0x02}, [2]byte{0x00, 0x50})
 	assert.Equal(t, len(nat_table), 1)
 
-	AddMapping("2.2.2.2", "80", "3.3.3.3", "80")
+	AddMapping([4]byte{0x02, 0x02, 0x02, 0x02}, [2]byte{0x00, 0x50}, [4]byte{0x03, 0x03, 0x03, 0x03}, [2]byte{0x00, 0x50})
 	assert.Equal(t, len(nat_table), 2)
 
-	AddMapping("2.2.2.2", "80", "1.1.1.1", "60")
+	AddMapping([4]byte{0x02, 0x02, 0x02, 0x02}, [2]byte{0x00, 0x50}, [4]byte{0x01, 0x01, 0x01, 0x01}, [2]byte{0x00, 0x3C})
 	assert.Equal(t, len(nat_table), 2)
 
-	exp := map[string]string{
-		"1.1.1.1/80": "2.2.2.2/80",
-		"2.2.2.2/80": "1.1.1.1/60",
+	exp := map[IPAddress]*IPAddress{
+		IPAddress{
+			[4]byte{0x01, 0x01, 0x01, 0x01},
+			[2]byte{0x00, 0x50},
+		}: &IPAddress{
+			[4]byte{0x02, 0x02, 0x02, 0x02},
+			[2]byte{0x00, 0x50},
+		},
+
+		IPAddress{
+			[4]byte{0x02, 0x02, 0x02, 0x02},
+			[2]byte{0x00, 0x50},
+		}: &IPAddress{
+			[4]byte{0x01, 0x01, 0x01, 0x01},
+			[2]byte{0x00, 0x3C},
+		},
 	}
 
-	eq := reflect.DeepEqual(exp, nat_table)
-	if !eq {
-		t.Errorf("Incorrect mapping. Expected %v Got %v", exp, nat_table)
+	for expKey, expValue := range exp {
+		value, ok := nat_table[expKey]
+		if !ok {
+			t.Errorf("Key %v Not Found", expKey)
+		}
+		if expValue.ipAdress != value.ipAdress {
+			t.Errorf("Incorrect Addressing Mapping. Expected %v Got %v", expValue.ipAdress, value.ipAdress)
+		}
+		if expValue.port != value.port {
+			t.Errorf("Incorrect Port Mapping. Expected %v Got %v", expValue.port, value.port)
+		}
 	}
 }
 
 func TestGetMapping(t *testing.T) {
 	nat_table = nil
-	AddMapping("1.1.1.1", "80", "2.2.2.2", "80")
-	AddMapping("2.2.2.2", "80", "3.3.3.3", "80")
-	AddMapping("2.2.2.2", "60", "3.3.3.3", "70")
-	AddMapping("3.3.3.3", "50", "4.4.4.4", "60")
-
+	AddMapping([4]byte{0x01, 0x01, 0x01, 0x01}, [2]byte{0x00, 0x50}, [4]byte{0x02, 0x02, 0x02, 0x02}, [2]byte{0x00, 0x50})
+	AddMapping([4]byte{0x02, 0x02, 0x02, 0x02}, [2]byte{0x00, 0x50}, [4]byte{0x03, 0x03, 0x03, 0x03}, [2]byte{0x00, 0x50})
+	AddMapping([4]byte{0x02, 0x02, 0x02, 0x02}, [2]byte{0x00, 0x3C}, [4]byte{0x03, 0x03, 0x03, 0x03}, [2]byte{0x00, 0x46})
+	AddMapping([4]byte{0x03, 0x03, 0x03, 0x03}, [2]byte{0x00, 0x32}, [4]byte{0x04, 0x04, 0x04, 0x04}, [2]byte{0x00, 0x3C})
 	assert.Equal(t, len(nat_table), 4)
 
-	ip, port, err := GetMapping("2.2.2.2", "80")
+	ip, port, err := GetMapping([4]byte{0x02, 0x02, 0x02, 0x02}, [2]byte{0x00, 0x50})
 	assert.Equal(t, nil, err)
-	assert.Equal(t, "80", port)
-	assert.Equal(t, "3.3.3.3", ip)
+	assert.Equal(t, [2]byte{0x00, 0x50}, port)
+	assert.Equal(t, [4]byte{0x03, 0x03, 0x03, 0x03}, ip)
 
-	ip, port, err = GetMapping("2.2.2.2", "60")
+	ip, port, err = GetMapping([4]byte{0x02, 0x02, 0x02, 0x02}, [2]byte{0x00, 0x3C})
 	assert.Equal(t, nil, err)
-	assert.Equal(t, "70", port)
-	assert.Equal(t, "3.3.3.3", ip)
+	assert.Equal(t, [2]byte{0x00, 0x46}, port)
+	assert.Equal(t, [4]byte{0x03, 0x03, 0x03, 0x03}, ip)
 
-	ip, port, err = GetMapping("4.4.4.4", "60")
+	ip, port, err = GetMapping([4]byte{0x04, 0x04, 0x04, 0x04}, [2]byte{0x00, 0x3C})
 	assert.Equal(t, fmt.Errorf("Not Found"), err)
-	assert.Equal(t, "", port)
-	assert.Equal(t, "", ip)
+	assert.Equal(t, [2]byte{}, port)
+	assert.Equal(t, [4]byte{}, ip)
 }

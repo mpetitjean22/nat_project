@@ -100,9 +100,8 @@ In addition, there are test files implemented in order to test the functionality
 ---
 
 ## Left Todo
-- parse port from TCP/UDP header under IPv6 header 
+- implement support for IPv6! 
 - implement additional control packets (should also figure out what additional control packets would be useful) 
 - be able to determine which packets are coming in vs. which was are going out 
     - so that we know whether or not to overwrite/compare the source IP/Port or the destination IP/Port 
 - implement mutex locks on the NAT mapping so that we do not run into any weird situations 
-- improve mapping code to use []byte or a defined struct to avoid using strings 

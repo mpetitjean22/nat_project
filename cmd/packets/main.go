@@ -7,8 +7,6 @@ import (
 	"nat_project/pkg/get_packets"
 	"nat_project/pkg/nat"
 	"nat_project/pkg/process_packet"
-	"net"
-	"strconv"
 	"time"
 
 	"github.com/google/gopacket/pcap"
@@ -72,18 +70,21 @@ func main() {
 				continue
 			}
 
-			controlIP := net.ParseIP("8.8.8.8")
-			controlPort := uint16(80)
-			if dstIP.Equal(controlIP) && dstPort == controlPort {
+			controlIP := [4]byte{0x08, 0x08, 0x08, 0x08}
+			controlPort := [2]byte{0x00, 0x50}
+
+			if dstIP == controlIP && dstPort == controlPort {
 				control_packet.ProcessControlPacket(packet_data)
 			} else {
-				newSrcIP, newSrcPort, err := nat.GetMapping(srcIP.String(), strconv.Itoa(int(srcPort)))
+
+				newSrcIP, newSrcPort, err := nat.GetMapping(srcIP, srcPort)
+
 				if err == nil {
 					/* print statements for debugging */
 					fmt.Println("Mapping Found!")
-					fmt.Printf("    Original Source: %s:%d\n", srcIP, srcPort)
-					fmt.Printf("    	 New Source: %s:%s \n", newSrcIP, newSrcPort)
-					fmt.Printf("        Destination: %s \n \n", dstIP)
+					fmt.Printf("    Original Source: %v:%v\n", srcIP, srcPort)
+					fmt.Printf("    	 New Source: %v:%v \n", newSrcIP, newSrcPort)
+					fmt.Printf("        Destination: %v \n \n", dstIP)
 
 					newPacketData := process_packet.WriteDstIP(packet_data)
 					if newPacketData != nil {

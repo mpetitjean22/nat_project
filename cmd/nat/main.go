@@ -7,16 +7,20 @@ import (
 
 /* Driver for NAT Stuff, if needed */
 func main() {
-	nat.AddMapping("1.1.1.1", "80", "2.2.2.2", "90")
-	nat.AddMapping("1.1.1.1", "60", "2.2.2.2", "40")
-	nat.AddMapping("3.3.3.3", "80", "4.4.4.4", "90")
+	nat.AddMapping([4]byte{0x01, 0x01, 0x01, 0x01}, [2]byte{0x00, 0x80}, [4]byte{0x02, 0x02, 0x02, 0x02}, [2]byte{0x00, 0x70})
+	nat.AddMapping([4]byte{0x01, 0x01, 0x01, 0x01}, [2]byte{0x00, 0x80}, [4]byte{0x02, 0x02, 0x02, 0x02}, [2]byte{0x00, 0x50})
+	nat.AddMapping([4]byte{0x03, 0x03, 0x03, 0x03}, [2]byte{0x00, 0x80}, [4]byte{0x04, 0x04, 0x04, 0x04}, [2]byte{0x00, 0x80})
+	nat.AddMapping([4]byte{0x03, 0x03, 0x03, 0x03}, [2]byte{0x00, 0x50}, [4]byte{0x04, 0x04, 0x04, 0x04}, [2]byte{0x00, 0x50})
 
 	mappings := nat.ListMappings()
-	fmt.Println(mappings)
+	for key, value := range mappings {
+		fmt.Printf("%v to %v \n", key, *value)
+	}
 
-	dstIP, dstPort, err := nat.GetMapping("1.1.1.1", "60")
+	dstIP, dstPort, err := nat.GetMapping([4]byte{0x01, 0x01, 0x01, 0x01}, [2]byte{0x00, 0x80})
 	if err != nil {
 		fmt.Println("error")
+		return
 	}
-	fmt.Printf("%s %s \n", dstIP, dstPort)
+	fmt.Printf("%v %v \n", dstIP, dstPort)
 }

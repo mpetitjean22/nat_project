@@ -4,28 +4,32 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"net"
 )
 
-func getSrcDstPortIPv4(data []byte) (uint16, uint16, error) {
+func getSrcDstPortIPv4(data []byte) ([2]byte, [2]byte, error) {
 	length := binary.BigEndian.Uint16(data[2:4])
 	protocol := data[9]
 	if protocol != 6 && protocol != 17 {
-		return 0, 0, fmt.Errorf("Not TCP or UDP")
+		return [2]byte{}, [2]byte{}, fmt.Errorf("Not TCP or UDP")
 	}
 
 	ihl := uint8(data[0]) & 0x0F
 	if length < 20 {
-		return 0, 0, fmt.Errorf("Invalid (too small) IP length (%d < 20)", length)
+		return [2]byte{}, [2]byte{}, fmt.Errorf("Invalid (too small) IP length (%d < 20)", length)
 	} else if ihl < 5 {
-		return 0, 0, fmt.Errorf("Invalid (too small) IP header length (%d < 5)", ihl)
+		return [2]byte{}, [2]byte{}, fmt.Errorf("Invalid (too small) IP header length (%d < 5)", ihl)
 	} else if int(ihl*4) > int(length) {
-		return 0, 0, fmt.Errorf("Invalid IP header length > IP length (%d > %d)", ihl, length)
+		return [2]byte{}, [2]byte{}, fmt.Errorf("Invalid IP header length > IP length (%d > %d)", ihl, length)
 	}
 
 	payload := data[ihl*4:]
-	sPort := binary.BigEndian.Uint16(payload[0:2])
-	dPort := binary.BigEndian.Uint16(payload[2:4])
+
+	sPort := [2]byte{}
+	copy(sPort[:], payload[0:2])
+
+	dPort := [2]byte{}
+	copy(dPort[:], payload[2:4])
+
 	return sPort, dPort, nil
 }
 
@@ -41,34 +45,44 @@ func getSrcDstPortIPv6(data []byte) (uint16, uint16, error) {
 	return 0, 0, nil
 }
 
-func GetSrcDstPort(data []byte) (uint16, uint16, error) {
+func GetSrcDstPort(data []byte) ([2]byte, [2]byte, error) {
 	version := data[0] >> 4
 
 	if version == 4 {
 		return getSrcDstPortIPv4(data)
-	} else if version == 6 {
+	}
+	/* Revisit IPv6 Support!
+	else if version == 6 {
 		return getSrcDstPortIPv6(data)
 	}
+	*/
 
-	return 0, 0, nil
+	return [2]byte{}, [2]byte{}, nil
 }
 
-func GetSrcDstIP(data []byte) (net.IP, net.IP, error) {
+func GetSrcDstIP(data []byte) ([4]byte, [4]byte, error) {
 	if len(data) < 20 {
-		return nil, nil, fmt.Errorf("Invalid ip4 header. Length %d less than 20", len(data))
+		return [4]byte{}, [4]byte{}, fmt.Errorf("Invalid ip4 header. Length %d less than 20", len(data))
 	}
 	version := data[0] >> 4
 	if version == 4 {
-		srcIP := net.IP(data[12:16])
-		dstIP := net.IP(data[16:20])
+		srcIP := [4]byte{}
+		copy(srcIP[:], data[12:16])
+
+		dstIP := [4]byte{}
+		copy(dstIP[:], data[16:20])
 		return srcIP, dstIP, nil
-	} else if version == 6 {
+	}
+
+	/* Will have to revist the IPv6 Support (since it needs more than 4 bytes)
+		else if version == 6 {
 		srcIP := net.IP(data[8:24])
 		dstIP := net.IP(data[24:40])
 		return srcIP, dstIP, nil
 	}
+	*/
 
-	return nil, nil, fmt.Errorf("Not Valid Version")
+	return [4]byte{}, [4]byte{}, fmt.Errorf("Not Valid Version")
 }
 
 func GetEthProtocol(data []byte) (uint16, error) {
