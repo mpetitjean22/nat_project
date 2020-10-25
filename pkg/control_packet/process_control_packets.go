@@ -15,20 +15,24 @@ func ProcessControlPacket(packet []byte) {
 
 	controlType := payload[0]
 
-	srcIP := [4]byte{}
-	copy(srcIP[:], payload[1:5])
+	if controlType == 1 || controlType == 3 {
+		srcIP := [4]byte{}
+		copy(srcIP[:], payload[1:5])
 
-	dstIP := [4]byte{}
-	copy(dstIP[:], payload[5:9])
+		dstIP := [4]byte{}
+		copy(dstIP[:], payload[5:9])
 
-	srcPort := [2]byte{}
-	copy(srcPort[:], payload[9:11])
+		srcPort := [2]byte{}
+		copy(srcPort[:], payload[9:11])
 
-	dstPort := [2]byte{}
-	copy(dstPort[:], payload[11:13])
+		dstPort := [2]byte{}
+		copy(dstPort[:], payload[11:13])
 
-	if controlType == 1 {
-		nat.AddMapping(srcIP, srcPort, dstIP, dstPort)
+		if controlType == 1 {
+			nat.AddMapping(srcIP, srcPort, dstIP, dstPort)
+		} else {
+			fmt.Println("DESTINATION MAPPING")
+		}
 	} else if controlType == 2 {
 		fmt.Println(nat.ListMappings())
 	}

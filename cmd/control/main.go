@@ -9,32 +9,31 @@ import (
 	"strconv"
 )
 
-func main() {
-	argsWithProg := os.Args
-	if len(argsWithProg) != 5 {
+func addMapping(argsWithProg []string, controlType int) {
+	if len(argsWithProg) != 6 {
 		fmt.Println("Invalid Number of Arguments")
-		fmt.Println("Looking for: (sourceIP) (sourcePort) (destinationIP) (destinationPort)")
+		fmt.Println("Looking for: (control type) (sourceIP) (sourcePort) (destinationIP) (destinationPort)")
 	}
 
-	srcIP := net.ParseIP(argsWithProg[1])
+	srcIP := net.ParseIP(argsWithProg[2])
 	if srcIP == nil {
 		fmt.Printf("Invalid Source IP \n")
 		return
 	}
 
-	srcPortVal, err := strconv.ParseUint(argsWithProg[2], 10, 16)
+	srcPortVal, err := strconv.ParseUint(argsWithProg[3], 10, 16)
 	if err != nil {
 		fmt.Printf("Invalid Source Port %v \n", err)
 		return
 	}
 
-	dstIP := net.ParseIP(argsWithProg[3])
+	dstIP := net.ParseIP(argsWithProg[4])
 	if dstIP == nil {
 		fmt.Printf("Invalid Dest IP \n")
 		return
 	}
 
-	dstPortVal, err := strconv.ParseUint(argsWithProg[4], 10, 16)
+	dstPortVal, err := strconv.ParseUint(argsWithProg[5], 10, 16)
 	if err != nil {
 		fmt.Printf("Invalid Dest Port %v \n", err)
 		return
@@ -46,15 +45,32 @@ func main() {
 	dstPort := make([]byte, 2)
 	binary.BigEndian.PutUint16(dstPort, uint16(dstPortVal))
 
-	//fmt.Println(srcIP, srcPort, dstIP, dstPort)
-	//srcIP := []byte{0x01, 0x01, 0x01, 0x01} // 1.1.1.1
-	//dstIP := []byte{0x02, 0x02, 0x02, 0x02} // 2.2.2.2
-	//srcPort := []byte{0x00, 0x50} // 80
-	//dstPort := []byte{0x00, 0x50} // 80
+	if controlType == 1 {
+		control_packet.SendAddMapping(srcIP[12:16], dstIP[12:16], srcPort, dstPort)
+	}
+	if controlType == 3 {
+		control_packet.SendAddDestMapping(srcIP[12:16], dstIP[12:16], srcPort, dstPort)
+	}
+}
 
-	// add a mapping from 1.1.1.1:80 to 2.2.2.2:80
-	control_packet.SendAddMapping(srcIP[12:16], dstIP[12:16], srcPort, dstPort)
+func main() {
+	argsWithProg := os.Args
+	if len(argsWithProg) < 2 {
+		fmt.Println("Invalid Number of Arguments")
+		fmt.Println("Looking for: (control type)")
+		fmt.Println("Looking for: (control type) (sourceIP) (sourcePort) (destinationIP) (destinationPort)")
+		return
+	}
 
-	// list the mapping (this will just print it out)
-	control_packet.SendListMappings()
+	controlType, err := strconv.Atoi(argsWithProg[1])
+	if err != nil {
+		fmt.Println("Error parsing control type")
+		return
+	}
+
+	if controlType == 1 || controlType == 3 {
+		addMapping(argsWithProg, controlType)
+	} else if controlType == 2 {
+		control_packet.SendListMappings()
+	}
 }

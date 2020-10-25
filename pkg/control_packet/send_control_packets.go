@@ -67,7 +67,6 @@ func sendContolPacket(payload []byte) {
 
 // Payload -> 1 byte: Control Type
 //					0x01: add mapping
-//					0x02: print mappings
 // 		   -> 4 bytes: Source IP
 //		   -> 4 bytes: Destination IP
 // 		   -> 2 bytes: Source Port
@@ -82,6 +81,24 @@ func SendAddMapping(srcIP []byte, dstIP []byte, srcPort []byte, dstPort []byte) 
 	sendContolPacket(payload)
 }
 
+// Payload -> 1 byte: Control Type
+//					0x03: add mapping
+// 		   -> 4 bytes: Source IP
+//		   -> 4 bytes: Destination IP
+// 		   -> 2 bytes: Source Port
+//         -> 2 bytes: Destination Port
+func SendAddDestMapping(srcIP []byte, dstIP []byte, srcPort []byte, dstPort []byte) {
+	payload := []byte{0x03}
+	payload = append(payload, srcIP...)
+	payload = append(payload, dstIP...)
+	payload = append(payload, srcPort...)
+	payload = append(payload, dstPort...)
+
+	sendContolPacket(payload)
+}
+
+// Payload -> 1 byte: Control Type
+//					0x02: print mappings
 func SendListMappings() {
 	payload := []byte{0x02}
 	sendContolPacket(payload)
