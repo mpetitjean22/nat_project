@@ -86,7 +86,7 @@ func main() {
 					fmt.Printf("    	 New Source: %v:%v \n", newSrcIP, newSrcPort)
 					fmt.Printf("        Destination: %v \n \n", dstIP)
 
-					newPacketData := process_packet.WriteDstIP(packet_data)
+					newPacketData := process_packet.WriteSource(packet_data, newSrcIP, newSrcPort)
 					if newPacketData != nil {
 						sendPacket(newPacketData)
 					}
