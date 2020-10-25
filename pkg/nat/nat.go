@@ -41,7 +41,15 @@ func GetMapping(srcIP [4]byte, srcPort [2]byte) ([4]byte, [2]byte, error) {
 	}
 	value, ok := nat_table[key]
 	if !ok {
-		return [4]byte{}, [2]byte{}, fmt.Errorf("Not Found")
+		// check if a wildcard exists (useful for testing)
+		key = IPAddress{
+			srcIP,
+			[2]byte{0x00, 0x00},
+		}
+		value, ok = nat_table[key]
+		if !ok {
+			return [4]byte{}, [2]byte{}, fmt.Errorf("Not Found")
+		}
 	}
 	return value.ipAdress, value.port, nil
 }

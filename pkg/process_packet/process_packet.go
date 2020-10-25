@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"reflect"
 )
 
 func getSrcDstPortIPv4(data []byte) ([2]byte, [2]byte, error) {
@@ -85,6 +86,20 @@ func GetSrcDstIP(data []byte) ([4]byte, [4]byte, error) {
 	return [4]byte{}, [4]byte{}, fmt.Errorf("Not Valid Version")
 }
 
+func GetMacAddress(data []byte) bool {
+	Marie_MAC := []byte{0xF0, 0x18, 0x98, 0x28, 0x0D, 0x06}
+	dstMac := data[:6]
+	srcMac := data[6:12]
+
+	if reflect.DeepEqual(Marie_MAC, dstMac) {
+		return true
+	}
+	if reflect.DeepEqual(Marie_MAC, srcMac) {
+		return false
+	}
+	return false
+}
+
 func GetEthProtocol(data []byte) (uint16, error) {
 	if len(data) < 14 {
 		return 0, errors.New("Ethernet packet too small")
@@ -94,7 +109,7 @@ func GetEthProtocol(data []byte) (uint16, error) {
 	return ethernetType, nil
 }
 
-/* Assumes that data is a valid packet with IPv4 on top of UDP/TCP */
+/* Functions below assume that data is a valid packet with IPv4 on top of UDP/TCP */
 func WriteSource(data []byte, srcIP [4]byte, srcPort [2]byte) []byte {
 	version := data[14] >> 4
 
@@ -113,12 +128,43 @@ func WriteSource(data []byte, srcIP [4]byte, srcPort [2]byte) []byte {
 		copy(newPacket[26:30], srcIP[:])
 		copy(newPacket[30:endIPEthHeaders], data[30:endIPEthHeaders])
 
-		// copy tcp/udp header (with new dest port)
+		// copy tcp/udp header (with new src port)
 		copy(newPacket[endIPEthHeaders:endIPEthHeaders+2], srcPort[:])
 
 		// copy rest of packet
 		copy(newPacket[endIPEthHeaders+2:], data[endIPEthHeaders+2:])
 
+		return newPacket
+	}
+
+	return nil
+}
+
+func WriteDestination(data []byte, dstIP [4]byte, dstPort [2]byte) []byte {
+	version := data[14] >> 4
+
+	if version == 4 {
+		endEthHeader := 14
+		endIPHeader := (uint8(data[14]) & 0x0F) * 4
+		endIPEthHeaders := endEthHeader + int(endIPHeader)
+
+		newPacket := make([]byte, len(data))
+
+		// copy eth header
+		copy(newPacket[:14], data[:14])
+
+		// copy ipv4 header (with new dest IP)
+		copy(newPacket[14:30], data[14:30])
+		copy(newPacket[30:34], dstIP[:])
+
+		copy(newPacket[34:endIPEthHeaders], data[34:endIPEthHeaders])
+
+		// copy tcp/udp header (with new dest port)
+		copy(newPacket[endIPEthHeaders:endIPEthHeaders+2], data[endIPEthHeaders:endIPEthHeaders+2])
+		copy(newPacket[endIPEthHeaders+2:endIPEthHeaders+4], dstPort[:])
+
+		// copy rest of packet
+		copy(newPacket[endIPEthHeaders+4:], data[endIPEthHeaders+4:])
 		return newPacket
 	}
 

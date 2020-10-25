@@ -76,19 +76,33 @@ func main() {
 			if dstIP == controlIP && dstPort == controlPort {
 				control_packet.ProcessControlPacket(packet_data)
 			} else {
+				if process_packet.GetMacAddress(packet_data) {
+					newSrcIP, newSrcPort, err := nat.GetMapping(srcIP, srcPort)
+					if err == nil {
+						/* print statements for debugging */
+						fmt.Println("Mapping Found!")
+						fmt.Printf("    Original Source: %v:%v\n", srcIP, srcPort)
+						fmt.Printf("    	 New Source: %v:%v \n", newSrcIP, newSrcPort)
+						fmt.Printf("        Destination: %v \n \n", dstIP)
 
-				newSrcIP, newSrcPort, err := nat.GetMapping(srcIP, srcPort)
+						newPacketData := process_packet.WriteSource(packet_data, newSrcIP, newSrcPort)
+						if newPacketData != nil {
+							sendPacket(newPacketData)
+						}
+					}
+				} else {
+					newDstIP, newDstPort, err := nat.GetMapping(dstIP, dstPort)
+					if err == nil {
+						/* print statements for debugging */
+						fmt.Println("Mapping Found!")
+						fmt.Printf("    Original Destination: %v:%v\n", dstIP, dstPort)
+						fmt.Printf("    	 New Destination: %v:%v \n", newDstIP, newDstPort)
+						fmt.Printf("                   Source: %v \n \n", dstIP)
 
-				if err == nil {
-					/* print statements for debugging */
-					fmt.Println("Mapping Found!")
-					fmt.Printf("    Original Source: %v:%v\n", srcIP, srcPort)
-					fmt.Printf("    	 New Source: %v:%v \n", newSrcIP, newSrcPort)
-					fmt.Printf("        Destination: %v \n \n", dstIP)
-
-					newPacketData := process_packet.WriteSource(packet_data, newSrcIP, newSrcPort)
-					if newPacketData != nil {
-						sendPacket(newPacketData)
+						newPacketData := process_packet.WriteDestination(packet_data, newDstIP, newDstPort)
+						if newPacketData != nil {
+							sendPacket(newPacketData)
+						}
 					}
 				}
 			}
