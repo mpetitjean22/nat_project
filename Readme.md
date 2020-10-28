@@ -8,9 +8,15 @@ $ packets
 ``` 
 In another terminal window, add a mapping using control, for example: 
 ``` sh 
-$ control 10.0.0.252 8009 2.2.2.2 80  
+$ control 1 10.0.0.252 8009 2.2.2.2 80  
 ``` 
-This should print out the following in the terminal window capturing packets to confirm a control packet was received, it will print out the current mapping (for now as a sanity check):
+This will create and send out a control packet which will create a mapping from 10.0.0.252:8009 (internal) to (2.2.2.2:80) external. 
+
+We can verify that it has been added to the map with the following: 
+``` sh 
+$ control 3
+``` 
+which will send a control packet asking to list out all of the current mappings, and will result in the following: 
 
 ``` sh 
 $ packets
@@ -58,16 +64,20 @@ UDP Header:
 * Source Port: 80
 
 Payload: 
-* Control Type - 0x01 = Add Mapping (1 Byte)
+* Control Type (1 Byte)
+    * 0x01 = Add Mapping (Internal -> External) 
+    * 0x02 = List Mappings 
+    * 0x03 = Add Mapping (External -> Internal) 
 * Source IP (4 Bytes) 
 * Destination IP (4 Bytes) 
 * Source Port (2 Bytes)
+    * Note: A source port of 0 will be considered as a wildcard and will only match the source IP 
 * Destination Port (2 Bytes) 
 
 Example/ This will add a mapping from 1.1.1.1/80 to 2.2.2.2/80 in the NAT table. 
 ```sh
 $ make control
-$ control 1.1.1.1 80 2.2.2.2 80 
+$ control 1 1.1.1.1 80 2.2.2.2 80 
 ```
 
 ### Capturing Packets 
@@ -100,8 +110,6 @@ In addition, there are test files implemented in order to test the functionality
 ---
 
 ## Left Todo
-- implement support for IPv6! 
-- implement additional control packets (should also figure out what additional control packets would be useful) 
-- be able to determine which packets are coming in vs. which was are going out 
-    - so that we know whether or not to overwrite/compare the source IP/Port or the destination IP/Port 
+- implement the dual nat tables, one for Internal->External and one for External->Internal
 - implement mutex locks on the NAT mapping so that we do not run into any weird situations 
+- implement support for IPv6! 
