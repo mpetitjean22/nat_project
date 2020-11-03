@@ -6,53 +6,63 @@ Run packets in one terminal window:
 ``` sh 
 $ packets 
 ``` 
-In another terminal window, add a mapping using control, for example: 
+In another terminal window, we can add a outbound mapping using control, for example: 
 ``` sh 
-$ control 1 10.0.0.252 8009 2.2.2.2 80  
+$ control 1 10.0.0.123 0 3.3.3.3 80  
 ``` 
-This will create and send out a control packet which will create a mapping from 10.0.0.252:8009 (internal) to (2.2.2.2:80) external. 
+This will create and send out a control packet which will create a mapping from `10.0.0.123:*` (internal) to `3.3.3.3:80` (external). We use a port of 0 to represent a wild card (*) in which any port will match to it. 
+
+We can also create an inbound mapping using control, for example: 
+``` sh 
+$ control 3 10.0.0.123 0 4.4.4.4 80  
+``` 
+This will create and send out a control packet which will create a mapping from `10.0.0.123:*` (external) to `4.4.4.4:80` (internal). 
 
 We can verify that it has been added to the map with the following: 
 ``` sh 
 $ control 3
 ``` 
-which will send a control packet asking to list out all of the current mappings, and will result in the following: 
+which will send a control packet asking to list out all of the current mappings of both the inbound and outbound nat tables. The output will look like the following: 
 
 ``` sh 
 $ packets
 Capturing Packets
-map[10.0.0.252/8009:2.2.2.2/80]
+Outbound
+map[{[10 0 0 123] [0 0]}:0xc0001de020]
+Inbound
+map[{[10 0 0 123] [0 0]}:0xc000094b60]
 ``` 
 
-On my computer, this mapping is used for some programs internally so we do not need to do anything to see packets with 10.0.0.252/8009 going through and being rewritten. We can see what is happening through our program: 
-
-
+We can verify the functionality by sending out a curl command and having wireshark running in the background. For example, running the curl: 
 ``` sh 
-Mapping Found!
-    Original Source: 10.0.0.252:8009
-    	 New Source: 2.2.2.2:80
-        Destination: 10.0.0.123
+$ curl 1.1.1.1
 ```
-We can verify that a packet with the new source IP and source port is being written using wireshark: 
+In wireshark we can see the following: 
+```
+281	8.595815	3.3.3.3	1.1.1.1	HTTP 
+282	8.596620	1.1.1.1	4.4.4.4	TCP
+283	8.597428	1.1.1.1	4.4.4.4	TCP
+285	8.597929	3.3.3.3	1.1.1.1	TCP	
+286	8.598429	1.1.1.1	4.4.4.4	HTTP
+```
+This shows that for outgoing packets going to `1.1.1.1` are having their source rewritten to `3.3.3.3` which was the rule we set for outgoing packets. 
 
-``` 
-Frame 3450: 176 bytes on wire (1408 bits), 176 bytes captured (1408 bits) on interface en0, id 0
-
-Internet Protocol Version 4, Src: 2.2.2.2, Dst: 10.0.0.123
-
-Transmission Control Protocol, Src Port: 80, Dst Port: 58453, Seq: 1, Ack: 1, Len: 110
-``` 
+Conversly, we see that packets coming from `1.1.1.1` have their destination rewritten to `4.4.4.4` which was the rule set for incoming packets. 
 
 --- 
 ## How to Run 
 ### Creating Control Packets 
-This will create control packets to send. For now the only control packet 
-that this will send will be an `Add Mapping` control packet. However, 
-the program is set up to handle other kinds of control packets in the future
-with little additional work needed. 
+
 ```sh
 $ make control
-$ control $source ip$, $source port$, $destination ip$, $destination port$      
+$ control
+Invalid Number of Arguments
+Looking for: (control type)
+Looking for: (control type) (sourceIP) (sourcePort) (destinationIP) (destinationPort)
+   control types:
+       1 -> add outbound mapping
+       2 -> list current mappings
+       3 -> add inbound mapping
  # if you get "command not found" run "source ./scripts/add-to-path.sh"
 ```
 Control packets currently have the following structure: 
@@ -110,6 +120,8 @@ In addition, there are test files implemented in order to test the functionality
 ---
 
 ## Left Todo
-- implement the dual nat tables, one for Internal->External and one for External->Internal
 - implement mutex locks on the NAT mapping so that we do not run into any weird situations 
 - implement support for IPv6! 
+
+- remove append (or implement your own)
+- make nicer print for listing out elements in mapping 
