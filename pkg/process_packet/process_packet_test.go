@@ -1,6 +1,7 @@
 package process_packet
 
 import (
+	"nat_project/pkg/get_packets"
 	"testing"
 
 	"github.com/google/gopacket"
@@ -24,8 +25,8 @@ func getGoPacketValues(packet gopacket.Packet, t *testing.T) (ethType uint16, sr
 
 	if ip4Layer != nil {
 		ip, _ := ip4Layer.(*layers.IPv4)
-		copy(srcIP[:], ip.SrcIP)
-		copy(dstIP[:], ip.DstIP)
+		srcIP = get_packets.Four_byte_copy(ip.SrcIP, 0)
+		dstIP = get_packets.Four_byte_copy(ip.DstIP, 0)
 	} else {
 		t.Errorf("Not IPv4")
 	}

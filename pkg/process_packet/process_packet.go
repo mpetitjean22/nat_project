@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"nat_project/pkg/get_packets"
 	"reflect"
 )
 
@@ -25,11 +26,8 @@ func getSrcDstPortIPv4(data []byte) ([2]byte, [2]byte, error) {
 
 	payload := data[ihl*4:]
 
-	sPort := [2]byte{}
-	copy(sPort[:], payload[0:2])
-
-	dPort := [2]byte{}
-	copy(dPort[:], payload[2:4])
+	sPort := get_packets.Two_byte_copy(payload, 0)
+	dPort := get_packets.Two_byte_copy(payload, 2)
 
 	return sPort, dPort, nil
 }
@@ -67,11 +65,8 @@ func GetSrcDstIP(data []byte) ([4]byte, [4]byte, error) {
 	}
 	version := data[0] >> 4
 	if version == 4 {
-		srcIP := [4]byte{}
-		copy(srcIP[:], data[12:16])
-
-		dstIP := [4]byte{}
-		copy(dstIP[:], data[16:20])
+		srcIP := get_packets.Four_byte_copy(data, 12)
+		dstIP := get_packets.Four_byte_copy(data, 16)
 		return srcIP, dstIP, nil
 	}
 
