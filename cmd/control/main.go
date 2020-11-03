@@ -13,6 +13,7 @@ func addMapping(argsWithProg []string, controlType int) {
 	if len(argsWithProg) != 6 {
 		fmt.Println("Invalid Number of Arguments")
 		fmt.Println("Looking for: (control type) (sourceIP) (sourcePort) (destinationIP) (destinationPort)")
+		return
 	}
 
 	srcIP := net.ParseIP(argsWithProg[2])
@@ -59,6 +60,10 @@ func main() {
 		fmt.Println("Invalid Number of Arguments")
 		fmt.Println("Looking for: (control type)")
 		fmt.Println("Looking for: (control type) (sourceIP) (sourcePort) (destinationIP) (destinationPort)")
+		fmt.Println("   control types: ")
+		fmt.Println("       1 -> add outbound mapping")
+		fmt.Println("       2 -> list current mappings")
+		fmt.Println("       3 -> add inbound mapping")
 		return
 	}
 

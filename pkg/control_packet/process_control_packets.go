@@ -9,7 +9,7 @@ import (
 // We will define control packets as having:
 // 			-> dstIP: 8.8.8.8
 // 			-> dstPort: 80
-func ProcessControlPacket(packet []byte) {
+func ProcessControlPacket(packet []byte, outbound_nat *nat.NAT_Table, inbound_nat *nat.NAT_Table) {
 	ihl := uint8(packet[14]) & 0x0F
 	payload := packet[14+8+(ihl*4):]
 
@@ -29,11 +29,16 @@ func ProcessControlPacket(packet []byte) {
 		copy(dstPort[:], payload[11:13])
 
 		if controlType == 1 {
-			nat.AddMapping(srcIP, srcPort, dstIP, dstPort)
+			outbound_nat.AddMapping(srcIP, srcPort, dstIP, dstPort)
 		} else {
 			fmt.Println("DESTINATION MAPPING")
+			inbound_nat.AddMapping(srcIP, srcPort, dstIP, dstPort)
 		}
 	} else if controlType == 2 {
-		fmt.Println(nat.ListMappings())
+		fmt.Println("Outbound")
+		fmt.Println(outbound_nat.ListMappings())
+
+		fmt.Println("Inbound")
+		fmt.Println(inbound_nat.ListMappings())
 	}
 }

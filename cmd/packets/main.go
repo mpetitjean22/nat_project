@@ -48,6 +48,8 @@ func main() {
 	fmt.Println("Capturing Packets")
 
 	packet_source := get_packets.NewPacketSource(handle)
+	outbound_nat := nat.NAT_Table{}
+	inbound_nat := nat.NAT_Table{}
 
 	for packet_data := range packet_source.Packets() {
 		ethProtocol, err := process_packet.GetEthProtocol(packet_data)
@@ -74,10 +76,10 @@ func main() {
 			controlPort := [2]byte{0x00, 0x50}
 
 			if dstIP == controlIP && dstPort == controlPort {
-				control_packet.ProcessControlPacket(packet_data)
+				control_packet.ProcessControlPacket(packet_data, &outbound_nat, &inbound_nat)
 			} else {
-				if process_packet.GetMacAddress(packet_data) {
-					newSrcIP, newSrcPort, err := nat.GetMapping(srcIP, srcPort)
+				if !process_packet.GetMacAddress(packet_data) {
+					newSrcIP, newSrcPort, err := outbound_nat.GetMapping(srcIP, srcPort)
 					if err == nil {
 						/* print statements for debugging */
 						fmt.Println("Mapping Found!")
@@ -91,7 +93,7 @@ func main() {
 						}
 					}
 				} else {
-					newDstIP, newDstPort, err := nat.GetMapping(dstIP, dstPort)
+					newDstIP, newDstPort, err := inbound_nat.GetMapping(dstIP, dstPort)
 					if err == nil {
 						/* print statements for debugging */
 						fmt.Println("Mapping Found!")
