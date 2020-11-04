@@ -123,5 +123,4 @@ In addition, there are test files implemented in order to test the functionality
 - implement mutex locks on the NAT mapping so that we do not run into any weird situations 
 - implement support for IPv6! 
 
-- remove append (or implement your own)
-- make nicer print for listing out elements in mapping 
+- remove copy (or implement your own)

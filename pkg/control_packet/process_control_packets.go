@@ -6,6 +6,14 @@ import (
 	"nat_project/pkg/nat"
 )
 
+func pp_table(mappings map[nat.IPAddress]*nat.IPAddress) {
+	fmt.Println("--------------------------")
+	for key, value := range mappings {
+		fmt.Printf("%v to %v \n", key, *value)
+	}
+	fmt.Println("--------------------------")
+}
+
 // Decodes a control packet
 // We will define control packets as having:
 // 			-> dstIP: 8.8.8.8
@@ -29,9 +37,9 @@ func ProcessControlPacket(packet []byte, outbound_nat *nat.NAT_Table, inbound_na
 		}
 	} else if controlType == 2 {
 		fmt.Println("Outbound")
-		fmt.Println(outbound_nat.ListMappings())
+		pp_table(outbound_nat.ListMappings())
 
 		fmt.Println("Inbound")
-		fmt.Println(inbound_nat.ListMappings())
+		pp_table(inbound_nat.ListMappings())
 	}
 }
