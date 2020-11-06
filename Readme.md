@@ -120,7 +120,16 @@ In addition, there are test files implemented in order to test the functionality
 ---
 
 ## Left Todo
+### General Improvements
 - implement mutex locks on the NAT mapping so that we do not run into any weird situations 
-- implement support for IPv6! 
+- implement support for IPv6
 
-- remove copy (or implement your own)
+- improve `GetMacAddress` function name 
+    * remove any hard coded mac address values
+
+- test functionality on the VM 
+
+### FPGA Improvements 
+- try and remove := (static variables)
+- remove byte slices (this might be a little complicated -- have to see)
+
