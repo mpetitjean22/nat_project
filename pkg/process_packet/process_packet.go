@@ -104,38 +104,15 @@ func GetEthProtocol(data []byte) (uint16, error) {
 	return ethernetType, nil
 }
 
-/* Functions below assume that data is a valid packet with IPv4 on top of UDP/TCP */
-func WriteSource(data []byte, srcIP [4]byte, srcPort [2]byte) []byte {
-	version := data[14] >> 4
-
-	if version == 4 {
-		endEthHeader := 14
-		endIPHeader := (uint8(data[14]) & 0x0F) * 4
-		endIPEthHeaders := endEthHeader + int(endIPHeader)
-
-		newPacket := make([]byte, len(data))
-
-		// copy eth header
-		copy(newPacket[:14], data[:14])
-
-		// copy ipv4 header (with new source IP)
-		copy(newPacket[14:26], data[14:26])
-		copy(newPacket[26:30], srcIP[:])
-		copy(newPacket[30:endIPEthHeaders], data[30:endIPEthHeaders])
-
-		// copy tcp/udp header (with new src port)
-		copy(newPacket[endIPEthHeaders:endIPEthHeaders+2], srcPort[:])
-
-		// copy rest of packet
-		copy(newPacket[endIPEthHeaders+2:], data[endIPEthHeaders+2:])
-
-		return newPacket
+func packet_copy(newPacket [65535]byte, newPacketStart int, data []byte, dataStart int, copyLength int) [65535]byte {
+	for i := 0; i < copyLength; i++ {
+		newPacket[newPacketStart+i] = data[dataStart+i]
 	}
-
-	return nil
+	return newPacket
 }
 
-func WriteDestination(data []byte, dstIP [4]byte, dstPort [2]byte) []byte {
+/* Functions below assume that data is a valid packet with IPv4 on top of UDP/TCP */
+func WriteSource(data []byte, srcIP [4]byte, srcPort [2]byte) ([65535]byte, error) {
 	version := data[14] >> 4
 
 	if version == 4 {
@@ -143,25 +120,55 @@ func WriteDestination(data []byte, dstIP [4]byte, dstPort [2]byte) []byte {
 		endIPHeader := (uint8(data[14]) & 0x0F) * 4
 		endIPEthHeaders := endEthHeader + int(endIPHeader)
 
-		newPacket := make([]byte, len(data))
+		newPacket := [65535]byte{}
 
 		// copy eth header
-		copy(newPacket[:14], data[:14])
+		newPacket = packet_copy(newPacket, 0, data, 0, 14)
 
-		// copy ipv4 header (with new dest IP)
-		copy(newPacket[14:30], data[14:30])
-		copy(newPacket[30:34], dstIP[:])
+		// copy ipv4 header (with new source IP)
+		newPacket = packet_copy(newPacket, 14, data, 14, 12)
+		newPacket = packet_copy(newPacket, 26, srcIP[:], 0, 4)
+		newPacket = packet_copy(newPacket, 30, data, 30, endIPEthHeaders-30)
 
-		copy(newPacket[34:endIPEthHeaders], data[34:endIPEthHeaders])
-
-		// copy tcp/udp header (with new dest port)
-		copy(newPacket[endIPEthHeaders:endIPEthHeaders+2], data[endIPEthHeaders:endIPEthHeaders+2])
-		copy(newPacket[endIPEthHeaders+2:endIPEthHeaders+4], dstPort[:])
+		// copy tcp/udp header (with new src port)
+		newPacket = packet_copy(newPacket, endIPEthHeaders, srcPort[:], 0, 2)
 
 		// copy rest of packet
-		copy(newPacket[endIPEthHeaders+4:], data[endIPEthHeaders+4:])
-		return newPacket
+		newPacket = packet_copy(newPacket, endIPEthHeaders+2, data, endIPEthHeaders+2, len(data)-(endIPEthHeaders+2))
+
+		return newPacket, nil
 	}
 
-	return nil
+	return [65535]byte{}, fmt.Errorf("Invalid IP Version")
+}
+
+func WriteDestination(data []byte, dstIP [4]byte, dstPort [2]byte) ([65535]byte, error) {
+	version := data[14] >> 4
+
+	if version == 4 {
+		endEthHeader := 14
+		endIPHeader := (uint8(data[14]) & 0x0F) * 4
+		endIPEthHeaders := endEthHeader + int(endIPHeader)
+
+		newPacket := [65535]byte{}
+
+		// copy eth header
+		newPacket = packet_copy(newPacket, 0, data, 0, 14)
+
+		// copy ipv4 header (with new dest IP)
+		newPacket = packet_copy(newPacket, 14, data, 14, 16)
+		newPacket = packet_copy(newPacket, 30, dstIP[:], 0, 4)
+
+		newPacket = packet_copy(newPacket, 34, data, 34, endIPEthHeaders-34)
+
+		// copy tcp/udp header (with new dest port)
+		newPacket = packet_copy(newPacket, endIPEthHeaders, data, endIPEthHeaders, 2)
+		newPacket = packet_copy(newPacket, endIPEthHeaders+2, dstPort[:], 0, 2)
+
+		// copy rest of packet
+		newPacket = packet_copy(newPacket, endIPEthHeaders+4, data, endIPEthHeaders+4, len(data)-(endIPEthHeaders+4))
+		return newPacket, nil
+	}
+
+	return [65535]byte{}, fmt.Errorf("Invalid IP Version")
 }

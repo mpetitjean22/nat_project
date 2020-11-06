@@ -7,6 +7,7 @@ import (
 	"nat_project/pkg/get_packets"
 	"nat_project/pkg/nat"
 	"nat_project/pkg/process_packet"
+	"os"
 	"time"
 
 	"github.com/google/gopacket/pcap"
@@ -35,6 +36,14 @@ func sendPacket(rawPacket []byte) {
 }
 
 func main() {
+	argsWithProg := os.Args
+	silentMode := false
+	if len(argsWithProg) == 2 {
+		if argsWithProg[1] == "-S" {
+			silentMode = true
+		}
+	}
+
 	// Open device
 	handle, err = pcap.OpenLive(device, snapshot_len, promiscuous, timeout)
 	if err != nil {
@@ -46,6 +55,7 @@ func main() {
 		log.Fatal(err)
 	}
 	fmt.Println("Capturing Packets")
+	fmt.Printf("Silent Mode: %v \n", silentMode)
 
 	packet_source := get_packets.NewPacketSource(handle)
 	outbound_nat := nat.NAT_Table{}
@@ -81,33 +91,45 @@ func main() {
 				if !process_packet.GetMacAddress(packet_data) {
 					newSrcIP, newSrcPort, err := outbound_nat.GetMapping(srcIP, srcPort)
 					if err == nil {
-						/* print statements for debugging */
-						fmt.Println("Mapping Found!")
-						fmt.Printf("    Original Source: %v:%v\n", srcIP, srcPort)
-						fmt.Printf("    	 New Source: %v:%v \n", newSrcIP, newSrcPort)
-						fmt.Printf("        Destination: %v \n \n", dstIP)
 
-						newPacketData := process_packet.WriteSource(packet_data, newSrcIP, newSrcPort)
-						if newPacketData != nil {
-							sendPacket(newPacketData)
+						if !silentMode {
+							printSourceMapping(srcIP, dstIP, srcPort, newSrcIP, newSrcPort)
+						}
+
+						newPacketData, err := process_packet.WriteSource(packet_data, newSrcIP, newSrcPort)
+						if err == nil {
+							sendPacket(newPacketData[:len(packet_data)])
 						}
 					}
 				} else {
 					newDstIP, newDstPort, err := inbound_nat.GetMapping(dstIP, dstPort)
 					if err == nil {
-						/* print statements for debugging */
-						fmt.Println("Mapping Found!")
-						fmt.Printf("    Original Destination: %v:%v\n", dstIP, dstPort)
-						fmt.Printf("    	 New Destination: %v:%v \n", newDstIP, newDstPort)
-						fmt.Printf("                   Source: %v \n \n", dstIP)
 
-						newPacketData := process_packet.WriteDestination(packet_data, newDstIP, newDstPort)
-						if newPacketData != nil {
-							sendPacket(newPacketData)
+						if !silentMode {
+							printDestMapping(dstIP, srcIP, dstPort, newDstIP, newDstPort)
+						}
+
+						newPacketData, err := process_packet.WriteDestination(packet_data, newDstIP, newDstPort)
+						if err == nil {
+							sendPacket(newPacketData[:len(packet_data)])
 						}
 					}
 				}
 			}
 		}
 	}
+}
+
+func printDestMapping(dstIP [4]byte, srcIP [4]byte, dstPort [2]byte, newDstIP [4]byte, newDstPort [2]byte) {
+	fmt.Println("Mapping Found!")
+	fmt.Printf("    Original Destination: %v:%v\n", dstIP, dstPort)
+	fmt.Printf("    	 New Destination: %v:%v \n", newDstIP, newDstPort)
+	fmt.Printf("                   Source: %v \n \n", srcIP)
+}
+
+func printSourceMapping(srcIP [4]byte, dstIP [4]byte, srcPort [2]byte, newSrcIP [4]byte, newSrcPort [2]byte) {
+	fmt.Println("Mapping Found!")
+	fmt.Printf("    Original Source: %v:%v\n", srcIP, srcPort)
+	fmt.Printf("    	 New Source: %v:%v \n", newSrcIP, newSrcPort)
+	fmt.Printf("        Destination: %v \n \n", dstIP)
 }
