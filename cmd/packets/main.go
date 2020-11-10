@@ -36,8 +36,11 @@ func sendPacket(rawPacket []byte) {
 }
 
 func main() {
-	argsWithProg := os.Args
-	silentMode := false
+	var argsWithProg []string
+	var silentMode bool
+
+	argsWithProg = os.Args
+	silentMode = false
 	if len(argsWithProg) == 2 {
 		if argsWithProg[1] == "-S" {
 			silentMode = true
@@ -57,12 +60,21 @@ func main() {
 	fmt.Println("Capturing Packets")
 	fmt.Printf("Silent Mode: %v \n", silentMode)
 
-	packet_source := get_packets.NewPacketSource(handle)
-	outbound_nat := nat.NAT_Table{}
-	inbound_nat := nat.NAT_Table{}
+	var packet_source *get_packets.PacketSource
+	var outbound_nat, inbound_nat *nat.NAT_Table
+	var packet_data []byte
 
-	for packet_data := range packet_source.Packets() {
-		ethProtocol, err := process_packet.GetEthProtocol(packet_data)
+	packet_source = get_packets.NewPacketSource(handle)
+	outbound_nat = &nat.NAT_Table{}
+	inbound_nat = &nat.NAT_Table{}
+
+	for packet_data = range packet_source.Packets() {
+		var ethProtocol uint16
+		var srcIP, dstIP, newIP [4]byte
+		var srcPort, dstPort, newPort [2]byte
+		var newPacketData [65535]byte
+
+		ethProtocol, err = process_packet.GetEthProtocol(packet_data)
 		if err != nil {
 			//fmt.Println(err)
 			continue
@@ -70,46 +82,43 @@ func main() {
 
 		if ethProtocol == 0x0800 || ethProtocol == 0x86DD {
 
-			srcIP, dstIP, err := process_packet.GetSrcDstIP(packet_data[14:])
+			srcIP, dstIP, err = process_packet.GetSrcDstIP(packet_data[14:])
 			if err != nil {
 				//fmt.Println(err)
 				continue
 			}
 
-			srcPort, dstPort, err := process_packet.GetSrcDstPort(packet_data[14:])
+			srcPort, dstPort, err = process_packet.GetSrcDstPort(packet_data[14:])
 			if err != nil {
 				//fmt.Println(err)
 				continue
 			}
 
-			controlIP := [4]byte{0x08, 0x08, 0x08, 0x08}
-			controlPort := [2]byte{0x00, 0x50}
-
-			if dstIP == controlIP && dstPort == controlPort {
-				control_packet.ProcessControlPacket(packet_data, &outbound_nat, &inbound_nat)
+			if dstIP == control_packet.ControlIP && dstPort == control_packet.ControlPort {
+				control_packet.ProcessControlPacket(packet_data, outbound_nat, inbound_nat)
 			} else {
 				if !process_packet.GetMacAddress(packet_data) {
-					newSrcIP, newSrcPort, err := outbound_nat.GetMapping(srcIP, srcPort)
+					newIP, newPort, err = outbound_nat.GetMapping(srcIP, srcPort)
 					if err == nil {
 
 						if !silentMode {
-							printSourceMapping(srcIP, dstIP, srcPort, newSrcIP, newSrcPort)
+							printSourceMapping(srcIP, dstIP, srcPort, newIP, newPort)
 						}
 
-						newPacketData, err := process_packet.WriteSource(packet_data, newSrcIP, newSrcPort)
+						newPacketData, err = process_packet.WriteSource(packet_data, newIP, newPort)
 						if err == nil {
 							sendPacket(newPacketData[:len(packet_data)])
 						}
 					}
 				} else {
-					newDstIP, newDstPort, err := inbound_nat.GetMapping(dstIP, dstPort)
+					newIP, newPort, err = inbound_nat.GetMapping(dstIP, dstPort)
 					if err == nil {
 
 						if !silentMode {
-							printDestMapping(dstIP, srcIP, dstPort, newDstIP, newDstPort)
+							printDestMapping(dstIP, srcIP, dstPort, newIP, newPort)
 						}
 
-						newPacketData, err := process_packet.WriteDestination(packet_data, newDstIP, newDstPort)
+						newPacketData, err = process_packet.WriteDestination(packet_data, newIP, newPort)
 						if err == nil {
 							sendPacket(newPacketData[:len(packet_data)])
 						}

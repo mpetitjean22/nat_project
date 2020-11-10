@@ -20,20 +20,24 @@ type IPAddress struct {
 }
 
 func (nat *NAT_Table) AddMapping(srcIP [4]byte, srcPort [2]byte, dstIP [4]byte, dstPort [2]byte) {
+	var ok bool
+	var mapping *IPAddress
+	var key IPAddress
+
 	if nat.nat_table == nil {
 		nat.nat_table = make(map[IPAddress]*IPAddress)
 	}
 
-	key := IPAddress{
+	key = IPAddress{
 		srcIP,
 		srcPort,
 	}
 
-	_, ok := nat.nat_table[key]
+	_, ok = nat.nat_table[key]
 	if !ok {
 		nat.nat_table[key] = &IPAddress{}
 	}
-	mapping, _ := nat.nat_table[key]
+	mapping, _ = nat.nat_table[key]
 	mapping.ipAdress = dstIP
 	mapping.port = dstPort
 }
@@ -43,11 +47,15 @@ func (nat *NAT_Table) ListMappings() map[IPAddress]*IPAddress {
 }
 
 func (nat *NAT_Table) GetMapping(srcIP [4]byte, srcPort [2]byte) ([4]byte, [2]byte, error) {
-	key := IPAddress{
+	var key IPAddress
+	var value *IPAddress
+	var ok bool
+
+	key = IPAddress{
 		srcIP,
 		srcPort,
 	}
-	value, ok := nat.nat_table[key]
+	value, ok = nat.nat_table[key]
 	if !ok {
 		// check if a wildcard exists (useful for testing)
 		key = IPAddress{

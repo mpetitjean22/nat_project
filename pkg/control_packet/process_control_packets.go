@@ -6,6 +6,12 @@ import (
 	"nat_project/pkg/nat"
 )
 
+// Destination IP Address/Port for Control Packets
+var (
+	ControlIP   = [4]byte{0x08, 0x08, 0x08, 0x08}
+	ControlPort = [2]byte{0x00, 0x50}
+)
+
 func pp_table(mappings map[nat.IPAddress]*nat.IPAddress) {
 	fmt.Println("--------------------------")
 	for key, value := range mappings {
@@ -15,7 +21,7 @@ func pp_table(mappings map[nat.IPAddress]*nat.IPAddress) {
 }
 
 // Decodes a control packet
-// We will define control packets as having:
+// We will define control packets as having (but can be changed above):
 // 			-> dstIP: 8.8.8.8
 // 			-> dstPort: 80
 func ProcessControlPacket(packet []byte, outbound_nat *nat.NAT_Table, inbound_nat *nat.NAT_Table) {
