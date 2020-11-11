@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"nat_project/pkg/get_packets"
+	"net"
 	"reflect"
 )
 
@@ -92,18 +93,25 @@ func GetSrcDstIP(data []byte) ([4]byte, [4]byte, error) {
 	return [4]byte{}, [4]byte{}, fmt.Errorf("Not Valid Version")
 }
 
-func GetMacAddress(data []byte) bool {
-	var Marie_MAC, dstMac, srcMac []byte
+func IsInboundPacket(data []byte) bool {
+	var macAddr, srcMac, dstMac []byte
+	var netInterface *net.Interface
+	var err error
 
-	Marie_MAC = []byte{0xF0, 0x18, 0x98, 0x28, 0x0D, 0x06}
+	netInterface, err = net.InterfaceByName("en0")
+	if err != nil {
+		return false
+	}
+
+	macAddr = netInterface.HardwareAddr
 	dstMac = data[:6]
 	srcMac = data[6:12]
 
-	if reflect.DeepEqual(Marie_MAC, dstMac) {
-		return true
-	}
-	if reflect.DeepEqual(Marie_MAC, srcMac) {
+	if reflect.DeepEqual(macAddr, dstMac) {
 		return false
+	}
+	if reflect.DeepEqual(macAddr, srcMac) {
+		return true
 	}
 	return false
 }

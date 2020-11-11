@@ -97,7 +97,7 @@ func main() {
 			if dstIP == control_packet.ControlIP && dstPort == control_packet.ControlPort {
 				control_packet.ProcessControlPacket(packet_data, outbound_nat, inbound_nat)
 			} else {
-				if !process_packet.GetMacAddress(packet_data) {
+				if process_packet.IsInboundPacket(packet_data) {
 					newIP, newPort, err = outbound_nat.GetMapping(srcIP, srcPort)
 					if err == nil {
 
