@@ -25,8 +25,8 @@ func pp_table(mappings map[nat.IPAddress]*nat.IPAddress) {
 // 			-> dstIP: 8.8.8.8
 // 			-> dstPort: 80
 func ProcessControlPacket(packet []byte, outbound_nat *nat.NAT_Table, inbound_nat *nat.NAT_Table) {
-	ihl := uint8(packet[14]) & 0x0F
-	payload := packet[14+8+(ihl*4):]
+	ihl := uint8(packet[0]) & 0x0F
+	payload := packet[8+(ihl*4):]
 	controlType := payload[0]
 
 	if controlType == 1 || controlType == 3 {

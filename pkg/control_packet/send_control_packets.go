@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	device       string = "en0"
+	device       string = "tun2"
 	snapshot_len int32  = 1024
 	promiscuous  bool   = false
 	err          error
@@ -22,26 +22,20 @@ var (
 )
 
 func createControlPacket(payload []byte) []byte {
-	ethernetLayer := &layers.Ethernet{
-		SrcMAC:       net.HardwareAddr{0xF0, 0x18, 0x98, 0x28, 0x0D, 0x06},
-		DstMAC:       net.HardwareAddr{0xF0, 0x18, 0x98, 0x28, 0x0D, 0x06},
-		EthernetType: layers.EthernetTypeIPv4,
-	}
 	ipLayer := &layers.IPv4{
-		SrcIP:    net.IP{127, 0, 0, 1},
+		SrcIP:    net.IP{10, 0, 0, 2}, // this should be adjusted
 		DstIP:    net.IP{8, 8, 8, 8},
 		Version:  4,
 		TTL:      10,
 		Protocol: layers.IPProtocolUDP,
 	}
 	udpLayer := &layers.UDP{
-		SrcPort: layers.UDPPort(4320),
+		SrcPort: layers.UDPPort(80), // this should be adjusted
 		DstPort: layers.UDPPort(80),
 	}
 	// And create the packet with the layers
 	buffer = gopacket.NewSerializeBuffer()
 	gopacket.SerializeLayers(buffer, options,
-		ethernetLayer,
 		ipLayer,
 		udpLayer,
 		gopacket.Payload(payload),
@@ -65,7 +59,7 @@ func sendContolPacket(payload []byte) {
 	}
 }
 
-// Payload -> 1 byte: Control Type
+// SendAddMapping Payload -> 1 byte: Control Type
 //					0x01: add mapping
 // 		   -> 4 bytes: Source IP
 //		   -> 4 bytes: Destination IP
@@ -81,7 +75,7 @@ func SendAddMapping(srcIP []byte, dstIP []byte, srcPort []byte, dstPort []byte) 
 	sendContolPacket(payload)
 }
 
-// Payload -> 1 byte: Control Type
+// SendAddDestMapping Payload -> 1 byte: Control Type
 //					0x03: add mapping
 // 		   -> 4 bytes: Source IP
 //		   -> 4 bytes: Destination IP
@@ -97,7 +91,7 @@ func SendAddDestMapping(srcIP []byte, dstIP []byte, srcPort []byte, dstPort []by
 	sendContolPacket(payload)
 }
 
-// Payload -> 1 byte: Control Type
+// SendListMappings Payload -> 1 byte: Control Type
 //					0x02: print mappings
 func SendListMappings() {
 	payload := []byte{0x02}
