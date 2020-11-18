@@ -17,26 +17,22 @@ import (
 )
 
 var (
-	snapshot_len int32         = 2048
-	promiscuous  bool          = false
-	timeout      time.Duration = 10 * time.Millisecond
-	outbound_nat *nat.NAT_Table
-	inbound_nat  *nat.NAT_Table
+	snapshotLen int32         = 2048
+	promiscuous bool          = false
+	timeout     time.Duration = 10 * time.Millisecond
+	outboundNat *nat.NAT_Table
+	inboundNat  *nat.NAT_Table
 
 	tunIfce    *water.Interface
 	tunIfceMtx sync.Mutex
 	wg         sync.WaitGroup
 )
 
-func sendPacket(handle *pcap.Handle, rawPacket []byte) {
-	//packet := []byte{0x52, 0x54, 0x00, 0x12, 0x35, 0x02, 0x08, 0x00, 0x27, 0xfd, 0x06, 0x32, 0x08, 0x00, 0x45, 0x00, 0x00, 0x3c, 0x04, 0x70, 0x40, 0x00, 0x40, 0x06, 0x28, 0x3c, 0x0a, 0x00, 0x02, 0x0f, 0x01, 0x01, 0x01, 0x01, 0xe0, 0x6a, 0x00, 0x50, 0xc1, 0xa1, 0x83, 0x9b, 0x00, 0x00, 0x00, 0x00, 0xa0, 0x02, 0xfa, 0xf0, 0x0e, 0x3f, 0x00, 0x00, 0x02, 0x04, 0x05, 0xb4, 0x04, 0x02, 0x08, 0x0a, 0x15, 0xbd, 0x50, 0xd1, 0x00, 0x00, 0x00, 0x00, 0x01, 0x03, 0x03, 0x07}
-
+func sendPacketPCAP(handle *pcap.Handle, rawPacket []byte) {
 	err := handle.WritePacketData(rawPacket)
 	if err != nil {
 		log.Fatal(err)
 	}
-	//fmt.Printf("%#v\n", rawPacket)
-	//fmt.Println("Sending out on enp0s3")
 }
 
 func sendPacketTun(rawPacket []byte) {
@@ -48,15 +44,12 @@ func sendPacketTun(rawPacket []byte) {
 }
 
 func listenWAN(silentMode bool) {
-	handle, err := pcap.OpenLive("enp0s3", snapshot_len, promiscuous, timeout)
+	handle, err := pcap.OpenLive("enp0s3", snapshotLen, promiscuous, timeout)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer handle.Close()
 
-	if err != nil {
-		log.Fatal(err)
-	}
 	fmt.Println("Capturing Packets on enp0s3")
 	fmt.Printf("Silent Mode: %v \n", silentMode)
 
@@ -84,9 +77,9 @@ func listenWAN(silentMode bool) {
 				continue
 			}
 
-			newIP, newPort, err := inbound_nat.GetMapping(dstIP, dstPort)
+			newIP, newPort, err := inboundNat.GetMapping(dstIP, dstPort)
 			if err == nil {
-				if bytes.Equal(srcIP[:], []byte{10, 0, 2, 15}) {
+				if bytes.Equal(srcIP[:], []byte{10, 0, 2, 15}) { // TEMP CODE
 					if !silentMode || true {
 						printDestMapping(dstIP, srcIP, dstPort, newIP, newPort)
 					}
@@ -102,57 +95,7 @@ func listenWAN(silentMode bool) {
 }
 
 func listenLAN(silentMode bool) {
-	// Open device
-	/*handle, err := pcap.OpenLive("tun2", snapshot_len, promiscuous, timeout)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer handle.Close()
-
-	if err != nil {
-		log.Fatal(err)
-	}*/
-
-	fmt.Println("Capturing Packets on tun2")
-	fmt.Printf("Silent Mode: %v \n", silentMode)
-
-	//packetSource := get_packets.NewPacketSource(handle)
-
-	/*for packetData := range packetSource.Packets() {
-
-		srcIP, dstIP, err := process_packet.GetSrcDstIP(packetData)
-		if err != nil {
-			//fmt.Println(err)
-			continue
-		}
-
-		srcPort, dstPort, err := process_packet.GetSrcDstPort(packetData)
-		if err != nil {
-			//fmt.Println(err)
-			continue
-		}
-
-		if dstIP == control_packet.ControlIP && dstPort == control_packet.ControlPort {
-			control_packet.ProcessControlPacket(packetData, outbound_nat, inbound_nat)
-		} else {
-			newIP, newPort, err := outbound_nat.GetMapping(srcIP, srcPort)
-			if err == nil {
-
-				if !silentMode || dstIP == [4]byte{1, 2, 3, 4} {
-					printSourceMapping(srcIP, dstIP, srcPort, newIP, newPort)
-				}
-
-				newPacketData, err := process_packet.WriteSource(packetData, newIP, newPort)
-				if err == nil {
-					sendPacket("enp0s3", newPacketData[:len(packetData)+14])
-				}
-			}
-		}
-	}*/
-}
-
-func listenLAN2(silentMode bool) {
-	handle, err := pcap.OpenLive("enp0s3", snapshot_len, promiscuous, timeout)
+	handle, err := pcap.OpenLive("enp0s3", snapshotLen, promiscuous, timeout) // used for writing
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -186,18 +129,18 @@ func listenLAN2(silentMode bool) {
 		}
 
 		if dstIP == control_packet.ControlIP && dstPort == control_packet.ControlPort {
-			control_packet.ProcessControlPacket(packetData, outbound_nat, inbound_nat)
+			control_packet.ProcessControlPacket(packetData, outboundNat, inboundNat)
 		} else {
-			newIP, newPort, err := outbound_nat.GetMapping(srcIP, srcPort)
+			newIP, newPort, err := outboundNat.GetMapping(srcIP, srcPort)
 			if err == nil {
 
-				if !silentMode || dstIP == [4]byte{1, 2, 3, 4} {
+				if !silentMode || dstIP == [4]byte{1, 2, 3, 4} { // TEMP CODE
 					printSourceMapping(srcIP, dstIP, srcPort, newIP, newPort)
 				}
 
 				newPacketData, err := process_packet.WriteSource(packetData, newIP, newPort)
 				if err == nil {
-					sendPacket(handle, newPacketData[:len(packetData)+14])
+					sendPacketPCAP(handle, newPacketData[:len(packetData)+14])
 				}
 			}
 		}
@@ -213,8 +156,8 @@ func main() {
 		}
 	}
 
-	outbound_nat = &nat.NAT_Table{}
-	inbound_nat = &nat.NAT_Table{}
+	outboundNat = &nat.NAT_Table{}
+	inboundNat = &nat.NAT_Table{}
 
 	// Setup TUN
 	config := water.Config{
@@ -229,7 +172,7 @@ func main() {
 	tunIfce = ifce
 
 	wg.Add(2)
-	go listenLAN2(silentMode)
+	go listenLAN(silentMode)
 	go listenWAN(silentMode)
 	wg.Wait()
 }

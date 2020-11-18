@@ -40,19 +40,6 @@ func getSrcDstPortIPv4(data []byte) ([2]byte, [2]byte, error) {
 	return sPort, dPort, nil
 }
 
-// Dead code for now -- skelaton for IPv6 support
-/* func getSrcDstPortIPv6(data []byte) (uint16, uint16, error) {
-	protocol := data[6]
-	if protocol != 6 && protocol != 17 {
-		return 0, 0, fmt.Errorf("Not TCP or UDP")
-	}
-
-	// TODO: Implement extracting Source and Dest Ports
-	// from the the payload with IPv6 header (having some trouble
-	// figuring out how big the IPv6 head is)
-	return 0, 0, nil
-} */
-
 func GetSrcDstPort(data []byte) ([2]byte, [2]byte, error) {
 	var version byte
 	version = data[0] >> 4
@@ -60,11 +47,6 @@ func GetSrcDstPort(data []byte) ([2]byte, [2]byte, error) {
 	if version == 4 {
 		return getSrcDstPortIPv4(data)
 	}
-	/* Revisit IPv6 Support!
-	else if version == 6 {
-		return getSrcDstPortIPv6(data)
-	}
-	*/
 
 	return [2]byte{}, [2]byte{}, nil
 }
@@ -83,13 +65,6 @@ func GetSrcDstIP(data []byte) ([4]byte, [4]byte, error) {
 		return srcIP, dstIP, nil
 	}
 
-	/* Will have to revist the IPv6 Support (since it needs more than 4 bytes)
-		else if version == 6 {
-		srcIP := net.IP(data[8:24])
-		dstIP := net.IP(data[24:40])
-		return srcIP, dstIP, nil
-	}
-	*/
 	return [4]byte{}, [4]byte{}, fmt.Errorf("Not Valid Version")
 }
 
@@ -136,6 +111,7 @@ func packet_copy(newPacket [65535]byte, newPacketStart int, data []byte, dataSta
 	return newPacket
 }
 
+// WriteSource is kind of a hot mess right now but will cleanup
 /* Functions below assume that data is a valid packet with IPv4 on top of UDP/TCP */
 func WriteSource(data []byte, srcIP [4]byte, srcPort [2]byte) ([65535]byte, error) {
 	var version byte
@@ -184,6 +160,7 @@ func WriteSource(data []byte, srcIP [4]byte, srcPort [2]byte) ([65535]byte, erro
 	return [65535]byte{}, fmt.Errorf("Invalid IP Version")
 }
 
+// WriteDestination is kind of a hot mess right now but will cleanup
 func WriteDestination(data []byte, dstIP [4]byte, dstPort [2]byte) ([65535]byte, error) {
 	var version byte
 

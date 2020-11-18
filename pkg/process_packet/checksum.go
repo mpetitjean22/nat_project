@@ -16,8 +16,6 @@ func pseudoHeader(srcIP [4]byte, dstIP [4]byte) uint32 {
 func computeChecksum(data []byte, csum uint32) uint16 {
 	length := len(data) - 1
 	for i := 0; i < length; i += 2 {
-		// For our test packet, doing this manually is about 25% faster
-		// (740 ns vs. 1000ns) than doing it by calling binary.BigEndian.Uint16.
 		csum += uint32(data[i]) << 8
 		csum += uint32(data[i+1])
 	}
@@ -73,9 +71,6 @@ func tcpCheckSum(data []byte) {
 	csum += length >> 16
 
 	checksum := computeChecksum(data[endIPHeader:len(data)], csum)
-
-	//Printf("%#x \n", checksum)
-
 	checksumByte := make([]byte, 2)
 	binary.BigEndian.PutUint16(checksumByte, checksum)
 
@@ -95,25 +90,20 @@ func updateCheckSum(data []byte) {
 }
 
 func computeIPCheckSum(bytes []byte) uint16 {
-	// Clear checksum bytes
 	bytes[10] = 0
 	bytes[11] = 0
 
-	// Compute checksum
 	var csum uint32
 	for i := 0; i < len(bytes); i += 2 {
 		csum += uint32(bytes[i]) << 8
 		csum += uint32(bytes[i+1])
 	}
 	for {
-		// Break when sum is less or equals to 0xFFFF
 		if csum <= 65535 {
 			break
 		}
-		// Add carry to the sum
 		csum = (csum >> 16) + uint32(uint16(csum))
 	}
-	// Flip all the bits
 	return ^uint16(csum)
 }
 

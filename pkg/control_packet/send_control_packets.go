@@ -11,29 +11,29 @@ import (
 )
 
 var (
-	device       string = "tun2"
-	snapshot_len int32  = 1024
-	promiscuous  bool   = false
-	err          error
-	timeout      time.Duration = 30 * time.Second
-	handle       *pcap.Handle
-	buffer       gopacket.SerializeBuffer
-	options      gopacket.SerializeOptions = gopacket.SerializeOptions{FixLengths: true}
+	device      string = "tun2"
+	snapshotLen int32  = 1024
+	promiscuous bool   = false
+	err         error
+	timeout     time.Duration = 30 * time.Second
+	handle      *pcap.Handle
+	buffer      gopacket.SerializeBuffer
+	options     gopacket.SerializeOptions = gopacket.SerializeOptions{FixLengths: true}
 )
 
 func createControlPacket(payload []byte) []byte {
 	ipLayer := &layers.IPv4{
-		SrcIP:    net.IP{10, 0, 0, 2}, // this should be adjusted
+		SrcIP:    net.IP{10, 0, 0, 2}, // TEMP CODE: this should be adjusted
 		DstIP:    net.IP{8, 8, 8, 8},
 		Version:  4,
 		TTL:      10,
 		Protocol: layers.IPProtocolUDP,
 	}
 	udpLayer := &layers.UDP{
-		SrcPort: layers.UDPPort(80), // this should be adjusted
+		SrcPort: layers.UDPPort(80), // TEMP CODE: this should be adjusted
 		DstPort: layers.UDPPort(80),
 	}
-	// And create the packet with the layers
+
 	buffer = gopacket.NewSerializeBuffer()
 	gopacket.SerializeLayers(buffer, options,
 		ipLayer,
@@ -46,7 +46,7 @@ func createControlPacket(payload []byte) []byte {
 
 func sendContolPacket(payload []byte) {
 	// Open device
-	handle, err = pcap.OpenLive(device, snapshot_len, promiscuous, timeout)
+	handle, err = pcap.OpenLive(device, snapshotLen, promiscuous, timeout)
 	if err != nil {
 		log.Fatal(err)
 	}

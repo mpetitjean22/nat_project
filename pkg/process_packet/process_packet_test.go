@@ -22,7 +22,6 @@ func getGoPacketValues(packet gopacket.Packet, t *testing.T) (ethType uint16, sr
 	ethType = uint16(ethernet.EthernetType)
 
 	ip4Layer := packet.Layer(layers.LayerTypeIPv4)
-	// ip6Layer := packet.Layer(layers.LayerTypeIPv6)
 
 	if ip4Layer != nil {
 		ip, _ := ip4Layer.(*layers.IPv4)
@@ -31,13 +30,6 @@ func getGoPacketValues(packet gopacket.Packet, t *testing.T) (ethType uint16, sr
 	} else {
 		t.Errorf("Not IPv4")
 	}
-	/* Revisit IPv6!
-	else if ip6Layer != nil {
-		ip, _ := ip6Layer.(*layers.IPv6)
-		srcIP = ip.SrcIP
-		dstIP = ip.DstIP
-	}
-	*/
 
 	tcpLayer := packet.Layer(layers.LayerTypeTCP)
 	udpLayer := packet.Layer(layers.LayerTypeUDP)
@@ -135,11 +127,11 @@ func TestTCPCheckSum(t *testing.T) {
 }
 
 func TestIPv4Packets(t *testing.T) {
-	for idx, packet_data := range ipv4TestCases {
-		goPacket := createGoPacket(packet_data)
+	for idx, packetData := range ipv4TestCases {
+		goPacket := createGoPacket(packetData)
 		expEthType, expSrcIP, expDstIP, expSrcPort, expDstPort := getGoPacketValues(goPacket, t)
 
-		got, err := GetEthProtocol(packet_data)
+		got, err := GetEthProtocol(packetData)
 		if err != nil {
 			t.Errorf("Testcase %d: ethernet type: %v", idx, err)
 		}
@@ -147,7 +139,7 @@ func TestIPv4Packets(t *testing.T) {
 			t.Errorf("Testcase %d: ethernet type: got %v expecting %v", idx, got, expEthType)
 		}
 
-		srcIP, dstIP, err := GetSrcDstIP(packet_data[14:])
+		srcIP, dstIP, err := GetSrcDstIP(packetData[14:])
 		if err != nil {
 			t.Errorf("Testcase %d: source/dest IP: %v", idx, err)
 		}
@@ -158,7 +150,7 @@ func TestIPv4Packets(t *testing.T) {
 			t.Errorf("Testcase %d: dest IP: got %v expecting %v", idx, dstIP, expDstIP)
 		}
 
-		srcPort, dstPort, err := GetSrcDstPort(packet_data[14:])
+		srcPort, dstPort, err := GetSrcDstPort(packetData[14:])
 		if err != nil {
 			t.Errorf("Testcase %d: source/dest port: %v", idx, err)
 		}

@@ -11,17 +11,16 @@ import (
 
 var (
 	//device string = "enp0s3"
-	device       string = "tun2"
-	snapshot_len int32  = 1024
-	promiscuous  bool   = false
-	err          error
-	timeout      time.Duration = 2 * time.Second
-	handle       *pcap.Handle
+	device      string = "tun2"
+	snapshotLen int32  = 1024
+	promiscuous bool   = false
+	err         error
+	timeout     time.Duration = 2 * time.Second
+	handle      *pcap.Handle
 )
 
 func sendPacket(rawPacket []byte) {
-	//packet := []byte{0x52, 0x54, 0x00, 0x12, 0x35, 0x02, 0x08, 0x00, 0x27, 0xfd, 0x06, 0x32, 0x08, 0x00, 0x45, 0x00, 0x00, 0x3c, 0x04, 0x70, 0x40, 0x00, 0x40, 0x06, 0x28, 0x3c, 0x0a, 0x00, 0x02, 0x0f, 0x01, 0x01, 0x01, 0x01, 0xe0, 0x6a, 0x00, 0x50, 0xc1, 0xa1, 0x83, 0x9b, 0x00, 0x00, 0x00, 0x00, 0xa0, 0x02, 0xfa, 0xf0, 0x0e, 0x3f, 0x00, 0x00, 0x02, 0x04, 0x05, 0xb4, 0x04, 0x02, 0x08, 0x0a, 0x15, 0xbd, 0x50, 0xd1, 0x00, 0x00, 0x00, 0x00, 0x01, 0x03, 0x03, 0x07}
-	handle, err = pcap.OpenLive(device, snapshot_len, promiscuous, timeout)
+	handle, err = pcap.OpenLive(device, snapshotLen, promiscuous, timeout)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -31,11 +30,16 @@ func sendPacket(rawPacket []byte) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("Sending test UDP")
+	fmt.Println("Sending Test Packet")
 }
 
+/*
+	Small program which uses gopacket to send out packets.
+	Useful for debugging + testing and has no real impact on the NAT
+	functionality itself.
+*/
 func main() {
-	fmt.Println("Test Sending")
+	fmt.Println("Creating Test Packet")
 	payload := test_packet.CreateTestPacket([]byte{0x07})
 	fmt.Printf("%#v\n", payload)
 	sendPacket(payload)
