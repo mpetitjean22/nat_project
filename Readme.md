@@ -1,4 +1,6 @@
 # NAT Project
+Note: go to tunNAT branch to see project that is operating between two interfaces. 
+
 ## Example 
 Scroll down for more information about how to run! 
 
