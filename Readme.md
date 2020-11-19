@@ -1,5 +1,7 @@
 # NAT Project
-## Demo 
+
+## Example 
+Scroll down for more information about how to run! 
 
 Run packets (in silent mode!!) in one terminal window: 
 ``` sh 
@@ -12,27 +14,11 @@ Configure the TUN and VM
 $ source scripts/set-tun.sh
 ``` 
 
-Optionally try and send out a curl over tun2 iterface: 
-``` sh 
-$ sudo curl --verbose --interface tun2 1.1.1.1
-``` 
-Running wireshark/tcpdump on tun2 interface will show syn packets going out but not response coming in. 
-
-Add mappings to NAT for demo (this will just send control packets -- this is also specific to Marie's VM fyi)
-``` sh 
-$ source scripts/add-mapping.sh
-```
-
-Now when we curl: 
-``` sh 
-$ sudo curl --verbose --interface tun2 1.1.1.1
-```
-We will get the response! We can also try this out by attempting to load the google home page: 
+A mapping will be added dynamically to the NAT and will allow the packets to pass through. The response will give us the homepage of google. 
 
 ```sh 
-$ sudo curl --verbose --interface tun2 https://wwww.google.com
+$ sudo curl --verbose --interface tun2 -ipv4 https://www.google.com
 ``` 
-
 
 --- 
 ## How to Run 
@@ -108,7 +94,10 @@ In addition, there are test files implemented in order to test the functionality
 ### General Improvements
 - implement mutex locks on the NAT mapping so that we do not run into any weird situations 
 - NAT is much faster now, but still a little bit slow loading google home page...maybe stop using pcap for injecting packets??
-- dynamic mappings!!! 
+- generalize code 
+    * take interface names as input 
+    * take interface IPs as input 
+    * remove hard coded eth headers (i think those are still there?)
 
 
 ### FPGA Improvements 

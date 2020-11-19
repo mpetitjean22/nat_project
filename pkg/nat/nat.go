@@ -19,6 +19,27 @@ type IPAddress struct {
 	port     [2]byte
 }
 
+var wanSource = [4]byte{10, 0, 2, 15}
+
+// addDynamicMapping should look like:
+// SOURCE: 			10.0.0.1 	(port #n) -> 	10.0.2.15 	(port #m)
+// DESTINATION: 	10.0.2.15 	(port #m) -> 	10.0.0.1 	(port #n)
+// where #n is given and #m is randomly assigned (?)
+// but for now, we can just keep it the same
+// Also for now, only dynamic mappings for the internal packets (just to
+// minimize the number of packets passing through)
+func (nat *NAT_Table) AddDynamicMapping(srcIP [4]byte, srcPort [2]byte, inboundNat *NAT_Table) {
+	key := IPAddress{
+		srcIP,
+		srcPort,
+	}
+	_, ok := nat.nat_table[key]
+	if !ok {
+		nat.AddMapping(srcIP, srcPort, wanSource, srcPort)
+		inboundNat.AddMapping(wanSource, srcPort, srcIP, srcPort)
+	}
+}
+
 func (nat *NAT_Table) AddMapping(srcIP [4]byte, srcPort [2]byte, dstIP [4]byte, dstPort [2]byte) {
 	var ok bool
 	var mapping *IPAddress

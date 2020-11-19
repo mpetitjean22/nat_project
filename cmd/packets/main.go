@@ -117,16 +117,17 @@ func listenLAN(readTunIfce io.ReadWriteCloser, silentMode bool) {
 			control_packet.ProcessControlPacket(packetData, outboundNat, inboundNat)
 		} else {
 			newIP, newPort, err := outboundNat.GetMapping(srcIP, srcPort)
+			if err != nil {
+				outboundNat.AddDynamicMapping(srcIP, srcPort, inboundNat)
+			}
+
+			if !silentMode {
+				printSourceMapping(srcIP, dstIP, srcPort, newIP, newPort)
+			}
+
+			newPacketData, err := process_packet.WriteSource(packetData, newIP, newPort)
 			if err == nil {
-
-				if !silentMode {
-					printSourceMapping(srcIP, dstIP, srcPort, newIP, newPort)
-				}
-
-				newPacketData, err := process_packet.WriteSource(packetData, newIP, newPort)
-				if err == nil {
-					sendPacketPCAP(handle, newPacketData[:len(packetData)+14])
-				}
+				sendPacketPCAP(handle, newPacketData[:len(packetData)+14])
 			}
 		}
 	}
