@@ -1,55 +1,38 @@
 # NAT Project
-Note: go to tunNAT branch to see project that is operating between two interfaces. 
+## Demo 
 
-## Example 
-Scroll down for more information about how to run! 
-
-Run packets in one terminal window: 
+Run packets (in silent mode!!) in one terminal window: 
 ``` sh 
-$ packets 
-``` 
-In another terminal window, we can add a outbound mapping using control, for example: 
-``` sh 
-$ control 1 10.0.0.123 0 3.3.3.3 80  
-``` 
-This will create and send out a control packet which will create a mapping from `10.0.0.123:*` (internal) to `3.3.3.3:80` (external). We use a port of 0 to represent a wild card (*) in which any port will match to it. 
-
-We can also create an inbound mapping using control, for example: 
-``` sh 
-$ control 3 10.0.0.123 0 4.4.4.4 80  
-``` 
-This will create and send out a control packet which will create a mapping from `10.0.0.123:*` (external) to `4.4.4.4:80` (internal). 
-
-We can verify that it has been added to the map with the following: 
-``` sh 
-$ control 3
-``` 
-which will send a control packet asking to list out all of the current mappings of both the inbound and outbound nat tables. The output will look like the following: 
-
-``` sh 
-$ packets
-Capturing Packets
-Outbound
-map[{[10 0 0 123] [0 0]}:0xc0001de020]
-Inbound
-map[{[10 0 0 123] [0 0]}:0xc000094b60]
+$ make packets
+$ packets -S
 ``` 
 
-We can verify the functionality by sending out a curl command and having wireshark running in the background. For example, running the curl: 
+Configure the TUN and VM
 ``` sh 
-$ curl 1.1.1.1
+$ source scripts/set-tun.sh
+``` 
+
+Optionally try and send out a curl over tun2 iterface: 
+``` sh 
+$ sudo curl --verbose --interface tun2 1.1.1.1
+``` 
+Running wireshark/tcpdump on tun2 interface will show syn packets going out but not response coming in. 
+
+Add mappings to NAT for demo (this will just send control packets -- this is also specific to Marie's VM fyi)
+``` sh 
+$ source scripts/add-mapping.sh
 ```
-In wireshark we can see the following: 
-```
-281	8.595815	3.3.3.3	1.1.1.1	HTTP 
-282	8.596620	1.1.1.1	4.4.4.4	TCP
-283	8.597428	1.1.1.1	4.4.4.4	TCP
-285	8.597929	3.3.3.3	1.1.1.1	TCP	
-286	8.598429	1.1.1.1	4.4.4.4	HTTP
-```
-This shows that for outgoing packets going to `1.1.1.1` are having their source rewritten to `3.3.3.3` which was the rule we set for outgoing packets. 
 
-Conversly, we see that packets coming from `1.1.1.1` have their destination rewritten to `4.4.4.4` which was the rule set for incoming packets. 
+Now when we curl: 
+``` sh 
+$ sudo curl --verbose --interface tun2 1.1.1.1
+```
+We will get the response! We can also try this out by attempting to load the google home page: 
+
+```sh 
+$ sudo curl --verbose --interface tun2 https://wwww.google.com
+``` 
+
 
 --- 
 ## How to Run 
@@ -124,12 +107,9 @@ In addition, there are test files implemented in order to test the functionality
 ## Left Todo
 ### General Improvements
 - implement mutex locks on the NAT mapping so that we do not run into any weird situations 
-- implement support for IPv6
+- NAT is much faster now, but still a little bit slow loading google home page...maybe stop using pcap for injecting packets??
+- dynamic mappings!!! 
 
-- improve `GetMacAddress` function name 
-    * remove any hard coded mac address values
-
-- test functionality on the VM 
 
 ### FPGA Improvements 
 - try and remove := (static variables)

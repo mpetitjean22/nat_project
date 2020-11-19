@@ -10,14 +10,17 @@ import (
 )
 
 func createGoPacket(data []byte) gopacket.Packet {
-	return gopacket.NewPacket(data, layers.LayerTypeEthernet, gopacket.Default)
+	// NOTE: No Eth Header because TAP Interface
+	//return gopacket.NewPacket(data, layers.LayerTypeEthernet, gopacket.Default)
+	return gopacket.NewPacket(data, layers.LayerTypeIPv4, gopacket.Default)
 }
 
 func getGoPacketValues(packet gopacket.Packet, t *testing.T) (dstIP net.IP, dstPort uint16) {
-	ethernetLayer := packet.Layer(layers.LayerTypeEthernet)
+	// NOTE: No Eth Header because TAP Interface
+	/* ethernetLayer := packet.Layer(layers.LayerTypeEthernet)
 	if ethernetLayer == nil {
 		t.Errorf("No Ethernet Type")
-	}
+	} */
 
 	ip4Layer := packet.Layer(layers.LayerTypeIPv4)
 	ip6Layer := packet.Layer(layers.LayerTypeIPv6)

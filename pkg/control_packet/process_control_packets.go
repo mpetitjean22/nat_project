@@ -12,7 +12,8 @@ var (
 	ControlPort = [2]byte{0x00, 0x50}
 )
 
-func pp_table(mappings map[nat.IPAddress]*nat.IPAddress) {
+// pp_table
+func ppTable(mappings map[nat.IPAddress]*nat.IPAddress) {
 	fmt.Println("--------------------------")
 	for key, value := range mappings {
 		fmt.Printf("%v to %v \n", key, *value)
@@ -20,13 +21,12 @@ func pp_table(mappings map[nat.IPAddress]*nat.IPAddress) {
 	fmt.Println("--------------------------")
 }
 
-// Decodes a control packet
-// We will define control packets as having (but can be changed above):
+// ProcessControlPacket processes the control packets with the following form:
 // 			-> dstIP: 8.8.8.8
 // 			-> dstPort: 80
-func ProcessControlPacket(packet []byte, outbound_nat *nat.NAT_Table, inbound_nat *nat.NAT_Table) {
-	ihl := uint8(packet[14]) & 0x0F
-	payload := packet[14+8+(ihl*4):]
+func ProcessControlPacket(packet []byte, outboundNat *nat.NAT_Table, inboundNat *nat.NAT_Table) {
+	ihl := uint8(packet[0]) & 0x0F
+	payload := packet[8+(ihl*4):]
 	controlType := payload[0]
 
 	if controlType == 1 || controlType == 3 {
@@ -37,15 +37,15 @@ func ProcessControlPacket(packet []byte, outbound_nat *nat.NAT_Table, inbound_na
 		dstPort := get_packets.Two_byte_copy(payload, 11)
 
 		if controlType == 1 {
-			outbound_nat.AddMapping(srcIP, srcPort, dstIP, dstPort)
+			outboundNat.AddMapping(srcIP, srcPort, dstIP, dstPort)
 		} else {
-			inbound_nat.AddMapping(srcIP, srcPort, dstIP, dstPort)
+			inboundNat.AddMapping(srcIP, srcPort, dstIP, dstPort)
 		}
 	} else if controlType == 2 {
 		fmt.Println("Outbound")
-		pp_table(outbound_nat.ListMappings())
+		ppTable(outboundNat.ListMappings())
 
 		fmt.Println("Inbound")
-		pp_table(inbound_nat.ListMappings())
+		ppTable(inboundNat.ListMappings())
 	}
 }

@@ -39,19 +39,6 @@ func getSrcDstPortIPv4(data []byte) ([2]byte, [2]byte, error) {
 	return sPort, dPort, nil
 }
 
-// Dead code for now -- skelaton for IPv6 support
-/* func getSrcDstPortIPv6(data []byte) (uint16, uint16, error) {
-	protocol := data[6]
-	if protocol != 6 && protocol != 17 {
-		return 0, 0, fmt.Errorf("Not TCP or UDP")
-	}
-
-	// TODO: Implement extracting Source and Dest Ports
-	// from the the payload with IPv6 header (having some trouble
-	// figuring out how big the IPv6 head is)
-	return 0, 0, nil
-} */
-
 func GetSrcDstPort(data []byte) ([2]byte, [2]byte, error) {
 	var version byte
 	version = data[0] >> 4
@@ -59,11 +46,6 @@ func GetSrcDstPort(data []byte) ([2]byte, [2]byte, error) {
 	if version == 4 {
 		return getSrcDstPortIPv4(data)
 	}
-	/* Revisit IPv6 Support!
-	else if version == 6 {
-		return getSrcDstPortIPv6(data)
-	}
-	*/
 
 	return [2]byte{}, [2]byte{}, nil
 }
@@ -82,14 +64,6 @@ func GetSrcDstIP(data []byte) ([4]byte, [4]byte, error) {
 		return srcIP, dstIP, nil
 	}
 
-	/* Will have to revist the IPv6 Support (since it needs more than 4 bytes)
-		else if version == 6 {
-		srcIP := net.IP(data[8:24])
-		dstIP := net.IP(data[24:40])
-		return srcIP, dstIP, nil
-	}
-	*/
-
 	return [4]byte{}, [4]byte{}, fmt.Errorf("Not Valid Version")
 }
 
@@ -98,7 +72,7 @@ func IsInboundPacket(data []byte) bool {
 	var netInterface *net.Interface
 	var err error
 
-	netInterface, err = net.InterfaceByName("en0")
+	netInterface, err = net.InterfaceByName("enp0s3")
 	if err != nil {
 		return false
 	}
@@ -136,10 +110,11 @@ func packet_copy(newPacket [65535]byte, newPacketStart int, data []byte, dataSta
 	return newPacket
 }
 
+// WriteSource is kind of a hot mess right now but will cleanup
 /* Functions below assume that data is a valid packet with IPv4 on top of UDP/TCP */
 func WriteSource(data []byte, srcIP [4]byte, srcPort [2]byte) ([65535]byte, error) {
 	var version byte
-	version = data[14] >> 4
+	version = data[0] >> 4
 
 	if len(data) > 65535 {
 		// for debugging but also just in case
@@ -151,29 +126,34 @@ func WriteSource(data []byte, srcIP [4]byte, srcPort [2]byte) ([65535]byte, erro
 		var newPacket [65535]byte
 
 		endEthHeader = 14
-		endIPHeader = int((uint8(data[14]) & 0x0F) * 4)
+		endIPHeader = int((uint8(data[0]) & 0x0F) * 4)
 		endIPEthHeaders = endEthHeader + int(endIPHeader)
 
 		// copy eth header
-		newPacket = packet_copy(newPacket, 0, data, 0, 14)
+		ethHeader := []byte{0x52, 0x54, 0x00, 0x12, 0x35, 0x02, 0x08, 0x00, 0x27, 0xfd, 0x06, 0x32, 0x08, 0x00}
+		copy(newPacket[0:14], ethHeader)
 
 		// copy ipv4 header (with new source IP)
-		newPacket = packet_copy(newPacket, 14, data, 14, 12)
-		newPacket = packet_copy(newPacket, 26, srcIP[:], 0, 4)
-		newPacket = packet_copy(newPacket, 30, data, 30, endIPEthHeaders-30)
+		copy(newPacket[14:26], data[0:12])
+		copy(newPacket[26:30], srcIP[:])
+		copy(newPacket[30:endIPEthHeaders], data[16:endIPHeader])
 
 		// copy tcp/udp header (with new src port)
-		newPacket = packet_copy(newPacket, endIPEthHeaders, srcPort[:], 0, 2)
+		//copy(newPacket[endIPEthHeaders:endIPEthHeaders+2], srcPort[:])
 
 		// copy rest of packet
-		newPacket = packet_copy(newPacket, endIPEthHeaders+2, data, endIPEthHeaders+2, len(data)-(endIPEthHeaders+2))
+		copy(newPacket[endIPEthHeaders:], data[endIPHeader:])
 
+		//fmt.Printf("%#v\n", newPacket[:14+len(data)])
+
+		updateCheckSum(newPacket[:14+len(data)])
 		return newPacket, nil
 	}
 
 	return [65535]byte{}, fmt.Errorf("Invalid IP Version")
 }
 
+// WriteDestination is kind of a hot mess right now but will cleanup
 func WriteDestination(data []byte, dstIP [4]byte, dstPort [2]byte) ([65535]byte, error) {
 	var version byte
 
@@ -196,11 +176,12 @@ func WriteDestination(data []byte, dstIP [4]byte, dstPort [2]byte) ([65535]byte,
 		newPacket = packet_copy(newPacket, 34, data, 34, endIPEthHeaders-34)
 
 		// copy tcp/udp header (with new dest port)
-		newPacket = packet_copy(newPacket, endIPEthHeaders, data, endIPEthHeaders, 2)
-		newPacket = packet_copy(newPacket, endIPEthHeaders+2, dstPort[:], 0, 2)
+		newPacket = packet_copy(newPacket, endIPEthHeaders, data, endIPEthHeaders, 4)
+		//newPacket = packet_copy(newPacket, endIPEthHeaders+2, dstPort[:], 0, 2)
 
 		// copy rest of packet
 		newPacket = packet_copy(newPacket, endIPEthHeaders+4, data, endIPEthHeaders+4, len(data)-(endIPEthHeaders+4))
+		updateCheckSum(newPacket[:len(data)])
 		return newPacket, nil
 	}
 

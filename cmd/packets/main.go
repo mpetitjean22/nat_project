@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"nat_project/pkg/control_packet"
 	"nat_project/pkg/get_packets"
@@ -11,70 +12,43 @@ import (
 	"time"
 
 	"github.com/google/gopacket/pcap"
+	"github.com/songgao/water"
 )
 
 var (
-	device       string = "en0"
-	snapshot_len int32  = 1024
-	promiscuous  bool   = false
-	err          error
-	timeout      time.Duration = 2 * time.Second
-	handle       *pcap.Handle
+	snapshotLen int32         = 2048
+	promiscuous bool          = false
+	timeout     time.Duration = 10 * time.Millisecond
+	outboundNat *nat.NAT_Table
+	inboundNat  *nat.NAT_Table
 )
 
-func sendPacket(rawPacket []byte) {
-	handle, err = pcap.OpenLive(device, snapshot_len, promiscuous, timeout)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer handle.Close()
-
-	err = handle.WritePacketData(rawPacket)
+func sendPacketPCAP(handle *pcap.Handle, rawPacket []byte) {
+	err := handle.WritePacketData(rawPacket)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func main() {
-	var argsWithProg []string
-	var silentMode bool
+func sendPacketTun(writeTunIfce io.ReadWriteCloser, rawPacket []byte) {
+	writeTunIfce.Write(rawPacket)
+}
 
-	argsWithProg = os.Args
-	silentMode = false
-	if len(argsWithProg) == 2 {
-		if argsWithProg[1] == "-S" {
-			silentMode = true
-		}
-	}
-
-	// Open device
-	handle, err = pcap.OpenLive(device, snapshot_len, promiscuous, timeout)
+func listenWAN(writeTunIfce io.ReadWriteCloser, silentMode bool) {
+	handle, err := pcap.OpenLive("enp0s3", snapshotLen, promiscuous, timeout)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer handle.Close()
 
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Capturing Packets")
+	fmt.Println("Capturing Packets on enp0s3")
 	fmt.Printf("Silent Mode: %v \n", silentMode)
 
-	var packet_source *get_packets.PacketSource
-	var outbound_nat, inbound_nat *nat.NAT_Table
-	var packet_data []byte
+	packetSource := get_packets.NewPacketSource(handle)
 
-	packet_source = get_packets.NewPacketSource(handle)
-	outbound_nat = &nat.NAT_Table{}
-	inbound_nat = &nat.NAT_Table{}
+	for packetData := range packetSource.Packets() {
 
-	for packet_data = range packet_source.Packets() {
-		var ethProtocol uint16
-		var srcIP, dstIP, newIP [4]byte
-		var srcPort, dstPort, newPort [2]byte
-		var newPacketData [65535]byte
-
-		ethProtocol, err = process_packet.GetEthProtocol(packet_data)
+		ethProtocol, err := process_packet.GetEthProtocol(packetData)
 		if err != nil {
 			//fmt.Println(err)
 			continue
@@ -82,51 +56,119 @@ func main() {
 
 		if ethProtocol == 0x0800 || ethProtocol == 0x86DD {
 
-			srcIP, dstIP, err = process_packet.GetSrcDstIP(packet_data[14:])
+			srcIP, dstIP, err := process_packet.GetSrcDstIP(packetData[14:])
 			if err != nil {
 				//fmt.Println(err)
 				continue
 			}
 
-			srcPort, dstPort, err = process_packet.GetSrcDstPort(packet_data[14:])
+			_, dstPort, err := process_packet.GetSrcDstPort(packetData[14:])
 			if err != nil {
 				//fmt.Println(err)
 				continue
 			}
 
-			if dstIP == control_packet.ControlIP && dstPort == control_packet.ControlPort {
-				control_packet.ProcessControlPacket(packet_data, outbound_nat, inbound_nat)
-			} else {
-				if process_packet.IsInboundPacket(packet_data) {
-					newIP, newPort, err = outbound_nat.GetMapping(srcIP, srcPort)
-					if err == nil {
+			newIP, newPort, err := inboundNat.GetMapping(dstIP, dstPort)
+			if err == nil {
+				if !silentMode {
+					printDestMapping(dstIP, srcIP, dstPort, newIP, newPort)
+				}
 
-						if !silentMode {
-							printSourceMapping(srcIP, dstIP, srcPort, newIP, newPort)
-						}
-
-						newPacketData, err = process_packet.WriteSource(packet_data, newIP, newPort)
-						if err == nil {
-							sendPacket(newPacketData[:len(packet_data)])
-						}
-					}
-				} else {
-					newIP, newPort, err = inbound_nat.GetMapping(dstIP, dstPort)
-					if err == nil {
-
-						if !silentMode {
-							printDestMapping(dstIP, srcIP, dstPort, newIP, newPort)
-						}
-
-						newPacketData, err = process_packet.WriteDestination(packet_data, newIP, newPort)
-						if err == nil {
-							sendPacket(newPacketData[:len(packet_data)])
-						}
-					}
+				newPacketData, err := process_packet.WriteDestination(packetData, newIP, newPort)
+				if err == nil {
+					sendPacketTun(writeTunIfce, newPacketData[14:len(packetData)])
 				}
 			}
 		}
 	}
+}
+
+func listenLAN(readTunIfce io.ReadWriteCloser, silentMode bool) {
+	handle, err := pcap.OpenLive("enp0s3", snapshotLen, promiscuous, timeout) // used for writing
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer handle.Close()
+
+	buffer := make([]byte, 2048)
+	fmt.Println("Capturing Packets on tun2")
+	fmt.Printf("Silent Mode: %v \n", silentMode)
+
+	for {
+		n, err := readTunIfce.Read(buffer)
+		if err != nil {
+			log.Fatal(err)
+		}
+		packetData := buffer[:n]
+
+		srcIP, dstIP, err := process_packet.GetSrcDstIP(packetData)
+		if err != nil {
+			//fmt.Println(err)
+			continue
+		}
+
+		srcPort, dstPort, err := process_packet.GetSrcDstPort(packetData)
+		if err != nil {
+			//fmt.Println(err)
+			continue
+		}
+
+		if dstIP == control_packet.ControlIP && dstPort == control_packet.ControlPort {
+			control_packet.ProcessControlPacket(packetData, outboundNat, inboundNat)
+		} else {
+			newIP, newPort, err := outboundNat.GetMapping(srcIP, srcPort)
+			if err == nil {
+
+				if !silentMode {
+					printSourceMapping(srcIP, dstIP, srcPort, newIP, newPort)
+				}
+
+				newPacketData, err := process_packet.WriteSource(packetData, newIP, newPort)
+				if err == nil {
+					sendPacketPCAP(handle, newPacketData[:len(packetData)+14])
+				}
+			}
+		}
+	}
+}
+
+func main() {
+	argsWithProg := os.Args
+	silentMode := false
+	if len(argsWithProg) == 2 {
+		if argsWithProg[1] == "-S" {
+			silentMode = true
+		}
+	}
+
+	outboundNat = &nat.NAT_Table{}
+	inboundNat = &nat.NAT_Table{}
+
+	// Setup TUN
+	config := water.Config{
+		DeviceType: water.TUN,
+	}
+	config.Name = "tun2"
+
+	ifce, err := water.New(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// file descriptors are thread(/goroutine)-safe per POSIX
+	// not sure about *os.File so make a seperate *os.File with the same fd
+	file, ok := ifce.ReadWriteCloser.(*os.File)
+	if !ok {
+		log.Fatalf("water.Interface is not backed by a fd to /dev/tun")
+	}
+
+	fd := file.Fd()
+
+	readTunIfce := os.NewFile(fd, "tunIfce")
+	writeTunIfce := ifce
+
+	go listenLAN(readTunIfce, silentMode)
+	listenWAN(writeTunIfce, silentMode)
 }
 
 func printDestMapping(dstIP [4]byte, srcIP [4]byte, dstPort [2]byte, newDstIP [4]byte, newDstPort [2]byte) {
