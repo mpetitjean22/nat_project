@@ -1,28 +1,38 @@
 # NAT Project
 ## Demo 
 
-Run packets in one terminal window: 
+Run packets (in silent mode!!) in one terminal window: 
 ``` sh 
 $ make packets
-$ packets 
+$ packets -S
 ``` 
 
-Set up a local HTTP server: 
-``` sh 
-$ python3 -m http.server
-``` 
-
-Set up the demo with the script: 
+Configure the TUN and VM
 ``` sh 
 $ source scripts/set-tun.sh
-```
+``` 
 
-When we attempt to curl: 
+Optionally try and send out a curl over tun2 iterface: 
 ``` sh 
-$ curl --verbose http://1.2.3.4:8000
+$ sudo curl --verbose --interface tun2 1.1.1.1
+``` 
+Running wireshark/tcpdump on tun2 interface will show syn packets going out but not response coming in. 
+
+Add mappings to NAT for demo (this will just send control packets -- this is also specific to Marie's VM fyi)
+``` sh 
+$ source scripts/add-mapping.sh
 ```
 
-We can observe in wireshark the exchange of packets between the two interfaces. 
+Now when we curl: 
+``` sh 
+$ sudo curl --verbose --interface tun2 1.1.1.1
+```
+We will get the response! We can also try this out by attempting to load the google home page: 
+
+```sh 
+$ sudo curl --verbose --interface tun2 https://wwww.google.com
+``` 
+
 
 --- 
 ## How to Run 
@@ -97,8 +107,8 @@ In addition, there are test files implemented in order to test the functionality
 ## Left Todo
 ### General Improvements
 - implement mutex locks on the NAT mapping so that we do not run into any weird situations 
-- improve speed (some slowness might be due to read/write contention)
-- try and find a solution to routing issues (if there even is a solution) 
+- NAT is much faster now, but still a little bit slow loading google home page...maybe stop using pcap for injecting packets??
+- dynamic mappings!!! 
 
 
 ### FPGA Improvements 

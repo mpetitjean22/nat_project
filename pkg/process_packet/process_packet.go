@@ -1,7 +1,6 @@
 package process_packet
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -139,12 +138,6 @@ func WriteSource(data []byte, srcIP [4]byte, srcPort [2]byte) ([65535]byte, erro
 		copy(newPacket[26:30], srcIP[:])
 		copy(newPacket[30:endIPEthHeaders], data[16:endIPHeader])
 
-		// BEGIN REMOVE
-		if bytes.Equal(newPacket[30:34], []byte{1, 2, 3, 4}) {
-			copy(newPacket[30:34], []byte{10, 0, 2, 15})
-		}
-		// END REMOVE
-
 		// copy tcp/udp header (with new src port)
 		//copy(newPacket[endIPEthHeaders:endIPEthHeaders+2], srcPort[:])
 
@@ -179,12 +172,6 @@ func WriteDestination(data []byte, dstIP [4]byte, dstPort [2]byte) ([65535]byte,
 		// copy ipv4 header (with new dest IP)
 		newPacket = packet_copy(newPacket, 14, data, 14, 16)
 		newPacket = packet_copy(newPacket, 30, dstIP[:], 0, 4)
-
-		// BEGIN REMOVE
-		if bytes.Equal(data[26:30], []byte{10, 0, 2, 15}) {
-			newPacket = packet_copy(newPacket, 26, []byte{1, 2, 3, 4}, 0, 4)
-		}
-		// END REMOVE
 
 		newPacket = packet_copy(newPacket, 34, data, 34, endIPEthHeaders-34)
 

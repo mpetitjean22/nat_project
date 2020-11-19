@@ -1,15 +1,14 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"nat_project/pkg/control_packet"
 	"nat_project/pkg/get_packets"
 	"nat_project/pkg/nat"
 	"nat_project/pkg/process_packet"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/google/gopacket/pcap"
@@ -22,10 +21,6 @@ var (
 	timeout     time.Duration = 10 * time.Millisecond
 	outboundNat *nat.NAT_Table
 	inboundNat  *nat.NAT_Table
-
-	tunIfce    *water.Interface
-	tunIfceMtx sync.Mutex
-	wg         sync.WaitGroup
 )
 
 func sendPacketPCAP(handle *pcap.Handle, rawPacket []byte) {
@@ -35,15 +30,11 @@ func sendPacketPCAP(handle *pcap.Handle, rawPacket []byte) {
 	}
 }
 
-func sendPacketTun(rawPacket []byte) {
-	// fmt.Println("About to lock in write")
-	tunIfceMtx.Lock()
-	tunIfce.Write(rawPacket)
-	// fmt.Println("About to unlock in write")
-	tunIfceMtx.Unlock()
+func sendPacketTun(writeTunIfce io.ReadWriteCloser, rawPacket []byte) {
+	writeTunIfce.Write(rawPacket)
 }
 
-func listenWAN(silentMode bool) {
+func listenWAN(writeTunIfce io.ReadWriteCloser, silentMode bool) {
 	handle, err := pcap.OpenLive("enp0s3", snapshotLen, promiscuous, timeout)
 	if err != nil {
 		log.Fatal(err)
@@ -79,22 +70,20 @@ func listenWAN(silentMode bool) {
 
 			newIP, newPort, err := inboundNat.GetMapping(dstIP, dstPort)
 			if err == nil {
-				if bytes.Equal(srcIP[:], []byte{10, 0, 2, 15}) { // TEMP CODE
-					if !silentMode || true {
-						printDestMapping(dstIP, srcIP, dstPort, newIP, newPort)
-					}
+				if !silentMode {
+					printDestMapping(dstIP, srcIP, dstPort, newIP, newPort)
+				}
 
-					newPacketData, err := process_packet.WriteDestination(packetData, newIP, newPort)
-					if err == nil {
-						sendPacketTun(newPacketData[14:len(packetData)])
-					}
+				newPacketData, err := process_packet.WriteDestination(packetData, newIP, newPort)
+				if err == nil {
+					sendPacketTun(writeTunIfce, newPacketData[14:len(packetData)])
 				}
 			}
 		}
 	}
 }
 
-func listenLAN(silentMode bool) {
+func listenLAN(readTunIfce io.ReadWriteCloser, silentMode bool) {
 	handle, err := pcap.OpenLive("enp0s3", snapshotLen, promiscuous, timeout) // used for writing
 	if err != nil {
 		log.Fatal(err)
@@ -106,11 +95,7 @@ func listenLAN(silentMode bool) {
 	fmt.Printf("Silent Mode: %v \n", silentMode)
 
 	for {
-		// fmt.Println("About to lock in read")
-		tunIfceMtx.Lock()
-		n, err := tunIfce.Read(buffer)
-		// fmt.Println("About to unlock in read")
-		tunIfceMtx.Unlock()
+		n, err := readTunIfce.Read(buffer)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -134,7 +119,7 @@ func listenLAN(silentMode bool) {
 			newIP, newPort, err := outboundNat.GetMapping(srcIP, srcPort)
 			if err == nil {
 
-				if !silentMode || dstIP == [4]byte{1, 2, 3, 4} { // TEMP CODE
+				if !silentMode {
 					printSourceMapping(srcIP, dstIP, srcPort, newIP, newPort)
 				}
 
@@ -169,12 +154,21 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	tunIfce = ifce
 
-	wg.Add(2)
-	go listenLAN(silentMode)
-	go listenWAN(silentMode)
-	wg.Wait()
+	// file descriptors are thread(/goroutine)-safe per POSIX
+	// not sure about *os.File so make a seperate *os.File with the same fd
+	file, ok := ifce.ReadWriteCloser.(*os.File)
+	if !ok {
+		log.Fatalf("water.Interface is not backed by a fd to /dev/tun")
+	}
+
+	fd := file.Fd()
+
+	readTunIfce := os.NewFile(fd, "tunIfce")
+	writeTunIfce := ifce
+
+	go listenLAN(readTunIfce, silentMode)
+	listenWAN(writeTunIfce, silentMode)
 }
 
 func printDestMapping(dstIP [4]byte, srcIP [4]byte, dstPort [2]byte, newDstIP [4]byte, newDstPort [2]byte) {

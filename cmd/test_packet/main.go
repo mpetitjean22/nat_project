@@ -10,10 +10,10 @@ import (
 )
 
 var (
-	//device string = "enp0s3"
-	device      string = "tun2"
-	snapshotLen int32  = 1024
-	promiscuous bool   = false
+	device string = "enp0s3"
+	//device      string = "tun2"
+	snapshotLen int32 = 1024
+	promiscuous bool  = false
 	err         error
 	timeout     time.Duration = 2 * time.Second
 	handle      *pcap.Handle
