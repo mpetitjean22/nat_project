@@ -6,6 +6,9 @@ import (
 	"log"
 	"nat_project/pkg/nat"
 	"os"
+	"os/signal"
+	"runtime/pprof"
+	"syscall"
 	"time"
 
 	"github.com/google/gopacket/pcap"
@@ -31,7 +34,89 @@ func sendPacketTun(writeTunIfce io.ReadWriteCloser, rawPacket []byte) {
 	writeTunIfce.Write(rawPacket)
 }
 
+func setupRawSocketForWANOutbound() int {
+	/*
+		ifceName := nat.Configs.WAN.Name
+
+		fmt.Println("about to call socket")
+		// int(binary.BigEndian.Uint16([]byte{syscall.ETH_P_ALL, 0})) is a hack for htons(ETH_P_ALL)
+		fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW, int(binary.BigEndian.Uint16([]byte{syscall.ETH_P_ALL, 0})))
+		if err != nil {
+			fmt.Println("awk")
+			log.Fatal(err)
+		}
+
+		fmt.Println("file descriptor", fd)
+
+		err = syscall.SetsockoptString(fd, syscall.SOL_SOCKET, syscall.SO_BINDTODEVICE, ifceName)
+		if err != nil {
+			fmt.Println("awk2")
+			log.Fatal(err)
+		}
+
+		// https://stackoverflow.com/questions/22116873/set-socket-option-is-why-so-important-for-a-socket-ip-hdrincl-in-icmp-request
+		// err = syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_HDRINCL, 1)
+		// if err != nil {
+		// fmt.Println("awk3")
+		// log.Fatal(err)
+		// }
+
+		return os.NewFile(uintptr(fd), "wan_outbound_raw_socket")
+	*/
+
+	ifceName := nat.Configs.WAN.Name
+
+	fmt.Println("about to call socket")
+	// int(binary.BigEndian.Uint16([]byte{syscall.ETH_P_ALL, 0})) is a hack for htons(ETH_P_ALL)
+	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_RAW)
+	if err != nil {
+		fmt.Println("awk")
+		log.Fatal(err)
+	}
+
+	fmt.Println("file descriptor", fd)
+
+	err = syscall.BindToDevice(fd, ifceName)
+	if err != nil {
+		fmt.Println("awk2")
+		log.Fatal(err)
+	}
+
+	// https://stackoverflow.com/questions/22116873/set-socket-option-is-why-so-important-for-a-socket-ip-hdrincl-in-icmp-request
+	// err = syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_HDRINCL, 1)
+	// if err != nil {
+	// fmt.Println("awk3")
+	// log.Fatal(err)
+	// }
+
+	return fd
+	// return os.NewFile(uintptr(fd), "wan_outbound_raw_socket")
+}
+
 func main() {
+	// BEGIN PROFILING STUFF
+	if true {
+		f, err := os.Create("profile.pprof")
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
+	sigs := make(chan os.Signal, 1)
+	done := make(chan bool, 1)
+
+	signal.Notify(sigs, syscall.SIGINT)
+
+	go func() {
+		sig := <-sigs
+		fmt.Println("received signal:")
+		fmt.Println(sig)
+		done <- true
+	}()
+	// END PROFILING STUFF
+
 	// configures NAT with settings, will fatalf if something goes wrong
 	nat.ConfigureNAT()
 
@@ -80,8 +165,16 @@ func main() {
 	readTunIfce := os.NewFile(fd, "tunIfce")
 	writeTunIfce := ifce
 
+	// go listenLAN(readTunIfce, silentMode, staticMode)
+	// listenWAN(writeTunIfce, silentMode)
+
+	// BEGIN PROFILING STUFF
+	fmt.Println("awaiting signal")
 	go listenLAN(readTunIfce, silentMode, staticMode)
-	listenWAN(writeTunIfce, silentMode)
+	go listenWAN(writeTunIfce, silentMode)
+	<-done
+	fmt.Println("exiting")
+	// END PROFILING STUFF
 }
 
 func printDestMapping(dstIP [4]byte, srcIP [4]byte, dstPort [2]byte, newDstIP [4]byte, newDstPort [2]byte) {

@@ -8,6 +8,7 @@ import (
 	"nat_project/pkg/get_packets"
 	"nat_project/pkg/nat"
 	"nat_project/pkg/process_packet"
+	"syscall"
 
 	"github.com/google/gopacket/pcap"
 )
@@ -62,11 +63,16 @@ func listenWAN(writeTunIfce io.ReadWriteCloser, silentMode bool) {
 }
 
 func listenLAN(readTunIfce io.ReadWriteCloser, silentMode bool, staticMode bool) {
-	handle, err := pcap.OpenLive(nat.Configs.WAN.Name, snapshotLen, promiscuous, timeout) // used for writing
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer handle.Close()
+	// handle, err := pcap.OpenLive(nat.Configs.WAN.Name, snapshotLen, promiscuous, timeout) // used for writing
+	// if err != nil {
+	// log.Fatal(err)
+	// }
+	// defer handle.Close()
+
+	// writeWANIfce := setupRawSocketForWANOutbound()
+	// defer writeWANIfce.Close()
+	writeWANFd := setupRawSocketForWANOutbound()
+	defer syscall.Close(writeWANFd)
 
 	buffer := make([]byte, 65535)
 	fmt.Printf("Capturing Packets on %s \n", nat.Configs.LAN.Name)
@@ -105,7 +111,14 @@ func listenLAN(readTunIfce io.ReadWriteCloser, silentMode bool, staticMode bool)
 
 				newPacketData, err := process_packet.WriteSource(packetData, newIP, newPort)
 				if err == nil {
-					sendPacketPCAP(handle, newPacketData[:len(packetData)+14])
+					// sendPacketPCAP(handle, newPacketData[:len(packetData)+14])
+					// n, err := writeWANIfce.Write(newPacketData[14 : len(packetData)+14])
+					syscall.Sendto(writeWANFd, newPacketData[14:len(packetData)+14], 0, &syscall.SockaddrInet4{Addr: dstIP})
+					// fmt.Printf("wrote and got %v\n", n)
+					if err != nil {
+						fmt.Println("awk4")
+						log.Fatal(err)
+					}
 				}
 			}
 		}

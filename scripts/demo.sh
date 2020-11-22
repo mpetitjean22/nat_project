@@ -4,4 +4,5 @@
 # rules are necessary. 
 
 sudo ip route add 172.217.0.0/16 dev tun2
+sudo ip route add 142.250.0.0/16 dev tun2
 sudo ip route add 208.80.0.0/16 dev tun2
