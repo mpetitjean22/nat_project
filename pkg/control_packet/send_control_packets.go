@@ -16,7 +16,6 @@ import (
 )
 
 var (
-	device      string        = nat.Configs.LAN.Name
 	snapshotLen int32         = 1024
 	promiscuous bool          = false
 	timeout     time.Duration = 30 * time.Second
@@ -92,7 +91,7 @@ func createControlPacket(payload []byte) []byte {
 }
 
 func sendContolPacket(payload []byte) {
-	handle, err := pcap.OpenLive(device, snapshotLen, promiscuous, timeout)
+	handle, err := pcap.OpenLive(nat.Configs.LAN.Name, snapshotLen, promiscuous, timeout)
 	if err != nil {
 		log.Fatal(err)
 	}

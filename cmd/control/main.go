@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"nat_project/pkg/control_packet"
+	"nat_project/pkg/nat"
 	"net"
 	"os"
 	"strconv"
@@ -13,6 +14,9 @@ import (
  * via a command line interface.
  */
 func main() {
+	// configures NAT with settings, will fatalf if something goes wrong
+	nat.ConfigureNAT()
+
 	argsWithProg := os.Args
 	if len(argsWithProg) < 2 {
 		fmt.Println("Error: Invalid Number of Arguments")
