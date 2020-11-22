@@ -32,6 +32,9 @@ func sendPacketTun(writeTunIfce io.ReadWriteCloser, rawPacket []byte) {
 }
 
 func main() {
+	// configures NAT with settings, will fatalf if something goes wrong
+	nat.ConfigureNAT()
+
 	argsWithProg := os.Args
 	silentMode := false
 	staticMode := false
@@ -58,7 +61,7 @@ func main() {
 	config := water.Config{
 		DeviceType: water.TUN,
 	}
-	config.Name = "tun2" // TODO: make generalizable
+	config.Name = nat.Configs.LAN.Name
 
 	ifce, err := water.New(config)
 	if err != nil {

@@ -29,9 +29,6 @@ type IPv4Address struct {
 	port     [2]byte
 }
 
-// TODO: generalized configurations
-var wanSource = [4]byte{10, 0, 2, 15}
-
 // AddDynamicMapping is used to add a mapping from a particular source IP/port
 // Example:
 // 		SOURCE: 			10.0.0.1 	(port #n) -> 	10.0.2.15 	(port #m)
@@ -43,8 +40,8 @@ func (nat *Table) AddDynamicMapping(srcIP [4]byte, srcPort [2]byte, inboundNat *
 		srcPort,
 	}
 	if _, ok := nat.natTable[key]; !ok {
-		nat.AddMapping(srcIP, srcPort, wanSource, srcPort)
-		inboundNat.AddMapping(wanSource, srcPort, srcIP, srcPort)
+		nat.AddMapping(srcIP, srcPort, Configs.WAN.IP, srcPort)
+		inboundNat.AddMapping(Configs.WAN.IP, srcPort, srcIP, srcPort)
 	}
 }
 

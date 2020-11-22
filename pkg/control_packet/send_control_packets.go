@@ -6,6 +6,7 @@ package control_packet
 
 import (
 	"log"
+	"nat_project/pkg/nat"
 	"net"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 )
 
 var (
-	device      string        = "tun2" // TODO: make generalizable!
+	device      string        = nat.Configs.LAN.Name
 	snapshotLen int32         = 1024
 	promiscuous bool          = false
 	timeout     time.Duration = 30 * time.Second
@@ -68,8 +69,8 @@ func SendListMappings() {
 
 func createControlPacket(payload []byte) []byte {
 	ipLayer := &layers.IPv4{
-		SrcIP:    net.IP{10, 0, 0, 2}, // TODO: make generalizable!
-		DstIP:    net.IP{8, 8, 8, 8},  // TODO: make generalizable!
+		SrcIP:    net.IP(nat.Configs.LAN.IP[:]),
+		DstIP:    net.IP{8, 8, 8, 8}, // TODO: make generalizable!
 		Version:  4,
 		TTL:      10,
 		Protocol: layers.IPProtocolUDP,

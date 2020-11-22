@@ -6,19 +6,20 @@ import (
 	"log"
 	"nat_project/pkg/control_packet"
 	"nat_project/pkg/get_packets"
+	"nat_project/pkg/nat"
 	"nat_project/pkg/process_packet"
 
 	"github.com/google/gopacket/pcap"
 )
 
 func listenWAN(writeTunIfce io.ReadWriteCloser, silentMode bool) {
-	handle, err := pcap.OpenLive("enp0s3", snapshotLen, promiscuous, timeout) // TODO: make generalizable
+	handle, err := pcap.OpenLive(nat.Configs.WAN.Name, snapshotLen, promiscuous, timeout)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer handle.Close()
 
-	fmt.Println("Capturing Packets on enp0s3") // TODO: make generalizable
+	fmt.Printf("Capturing Packets on %s \n", nat.Configs.WAN.Name)
 	fmt.Printf("Silent Mode: %v \n", silentMode)
 
 	packetSource := get_packets.NewPacketSource(handle)
@@ -61,15 +62,14 @@ func listenWAN(writeTunIfce io.ReadWriteCloser, silentMode bool) {
 }
 
 func listenLAN(readTunIfce io.ReadWriteCloser, silentMode bool, staticMode bool) {
-	// TODO: make generalizable
-	handle, err := pcap.OpenLive("enp0s3", snapshotLen, promiscuous, timeout) // used for writing
+	handle, err := pcap.OpenLive(nat.Configs.WAN.Name, snapshotLen, promiscuous, timeout) // used for writing
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer handle.Close()
 
 	buffer := make([]byte, 2048)
-	fmt.Println("Capturing Packets on tun2")
+	fmt.Printf("Capturing Packets on %s \n", nat.Configs.LAN.Name)
 	fmt.Printf("Silent Mode: %v \n", silentMode)
 
 	for {
