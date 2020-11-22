@@ -132,11 +132,9 @@ There are test files implemented in order to verify the functionality of every p
 ## Remaining Work
 ### General Improvements
 - Mutex Locks for LAN/WAN NAT
-- Improve performance. Potentially removing GoPacket? 
-- Generalize Code with configuration file or something similar 
-    * take interface names as input 
-    * take interface IPs as input 
+- Generalize Code with configuration YAML  
     * remove hard coded eth headers
+    * configure the NAT control packet destination IP/Port
 
 
 ### FPGA Improvements 

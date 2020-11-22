@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	snapshotLen int32         = 2048
+	snapshotLen int32         = 65535
 	promiscuous bool          = false
 	timeout     time.Duration = 10 * time.Millisecond
 	outboundNat *nat.Table

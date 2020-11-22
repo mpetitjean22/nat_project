@@ -68,7 +68,7 @@ func listenLAN(readTunIfce io.ReadWriteCloser, silentMode bool, staticMode bool)
 	}
 	defer handle.Close()
 
-	buffer := make([]byte, 2048)
+	buffer := make([]byte, 65535)
 	fmt.Printf("Capturing Packets on %s \n", nat.Configs.LAN.Name)
 	fmt.Printf("Silent Mode: %v \n", silentMode)
 
