@@ -1,2 +1,0 @@
-for i in /proc/sys/net/ipv4/conf/*/rp_filter; do echo $i && cat $i; done
-https://serverfault.com/questions/816393/disabling-rp-filter-on-one-interface

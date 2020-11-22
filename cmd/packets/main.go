@@ -19,8 +19,8 @@ var (
 	snapshotLen int32         = 2048
 	promiscuous bool          = false
 	timeout     time.Duration = 10 * time.Millisecond
-	outboundNat *nat.NAT_Table
-	inboundNat  *nat.NAT_Table
+	outboundNat *nat.Table
+	inboundNat  *nat.Table
 )
 
 func sendPacketPCAP(handle *pcap.Handle, rawPacket []byte) {
@@ -142,8 +142,8 @@ func main() {
 		}
 	}
 
-	outboundNat = &nat.NAT_Table{}
-	inboundNat = &nat.NAT_Table{}
+	outboundNat = &nat.Table{}
+	inboundNat = &nat.Table{}
 
 	// Setup TUN
 	config := water.Config{
