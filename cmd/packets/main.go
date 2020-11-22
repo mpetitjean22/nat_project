@@ -4,10 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"nat_project/pkg/control_packet"
-	"nat_project/pkg/get_packets"
 	"nat_project/pkg/nat"
-	"nat_project/pkg/process_packet"
 	"os"
 	"time"
 
@@ -34,114 +31,26 @@ func sendPacketTun(writeTunIfce io.ReadWriteCloser, rawPacket []byte) {
 	writeTunIfce.Write(rawPacket)
 }
 
-func listenWAN(writeTunIfce io.ReadWriteCloser, silentMode bool) {
-	handle, err := pcap.OpenLive("enp0s3", snapshotLen, promiscuous, timeout)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer handle.Close()
-
-	fmt.Println("Capturing Packets on enp0s3")
-	fmt.Printf("Silent Mode: %v \n", silentMode)
-
-	packetSource := get_packets.NewPacketSource(handle)
-
-	for packetData := range packetSource.Packets() {
-
-		ethProtocol, err := process_packet.GetEthProtocol(packetData)
-		if err != nil {
-			//fmt.Println(err)
-			continue
-		}
-
-		if ethProtocol == 0x0800 || ethProtocol == 0x86DD {
-
-			srcIP, dstIP, err := process_packet.GetSrcDstIP(packetData[14:])
-			if err != nil {
-				//fmt.Println(err)
-				continue
-			}
-
-			_, dstPort, err := process_packet.GetSrcDstPort(packetData[14:])
-			if err != nil {
-				//fmt.Println(err)
-				continue
-			}
-
-			newIP, newPort, err := inboundNat.GetMapping(dstIP, dstPort)
-			if err == nil {
-				if !silentMode {
-					printDestMapping(dstIP, srcIP, dstPort, newIP, newPort)
-				}
-
-				newPacketData, err := process_packet.WriteDestination(packetData, newIP, newPort)
-				if err == nil {
-					sendPacketTun(writeTunIfce, newPacketData[14:len(packetData)])
-				}
-			}
-		}
-	}
-}
-
-func listenLAN(readTunIfce io.ReadWriteCloser, silentMode bool) {
-	handle, err := pcap.OpenLive("enp0s3", snapshotLen, promiscuous, timeout) // used for writing
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer handle.Close()
-
-	buffer := make([]byte, 2048)
-	fmt.Println("Capturing Packets on tun2")
-	fmt.Printf("Silent Mode: %v \n", silentMode)
-
-	for {
-		n, err := readTunIfce.Read(buffer)
-		if err != nil {
-			log.Fatal(err)
-		}
-		packetData := buffer[:n]
-
-		srcIP, dstIP, err := process_packet.GetSrcDstIP(packetData)
-		if err != nil {
-			//fmt.Println(err)
-			continue
-		}
-
-		srcPort, dstPort, err := process_packet.GetSrcDstPort(packetData)
-		if err != nil {
-			//fmt.Println(err)
-			continue
-		}
-
-		if dstIP == control_packet.ControlIP && dstPort == control_packet.ControlPort {
-			control_packet.ProcessControlPacket(packetData, outboundNat, inboundNat)
-		} else {
-			newIP, newPort, err := outboundNat.GetMapping(srcIP, srcPort)
-			if err != nil {
-				outboundNat.AddDynamicMapping(srcIP, srcPort, inboundNat)
-			}
-
-			if !silentMode {
-				printSourceMapping(srcIP, dstIP, srcPort, newIP, newPort)
-			}
-
-			newPacketData, err := process_packet.WriteSource(packetData, newIP, newPort)
-			if err == nil {
-				sendPacketPCAP(handle, newPacketData[:len(packetData)+14])
-			}
-		}
-	}
-}
-
 func main() {
 	argsWithProg := os.Args
 	silentMode := false
-	if len(argsWithProg) == 2 {
-		if argsWithProg[1] == "-S" {
-			silentMode = true
+	staticMode := false
+
+	if len(argsWithProg) > 1 {
+		for i := 1; i < len(argsWithProg); i++ {
+			if argsWithProg[i] == "-S" {
+				silentMode = true
+			} else if argsWithProg[i] == "--static-mapping" {
+				staticMode = true
+			} else {
+				fmt.Printf("Error: %v is an invalid option \n", argsWithProg[i])
+				printOptions()
+				return
+			}
 		}
 	}
 
+	// Setup NAT tables
 	outboundNat = &nat.Table{}
 	inboundNat = &nat.Table{}
 
@@ -149,7 +58,7 @@ func main() {
 	config := water.Config{
 		DeviceType: water.TUN,
 	}
-	config.Name = "tun2"
+	config.Name = "tun2" // TODO: make generalizable
 
 	ifce, err := water.New(config)
 	if err != nil {
@@ -168,7 +77,7 @@ func main() {
 	readTunIfce := os.NewFile(fd, "tunIfce")
 	writeTunIfce := ifce
 
-	go listenLAN(readTunIfce, silentMode)
+	go listenLAN(readTunIfce, silentMode, staticMode)
 	listenWAN(writeTunIfce, silentMode)
 }
 
@@ -184,4 +93,12 @@ func printSourceMapping(srcIP [4]byte, dstIP [4]byte, srcPort [2]byte, newSrcIP 
 	fmt.Printf("    Original Source: %v:%v\n", srcIP, srcPort)
 	fmt.Printf("    	 New Source: %v:%v \n", newSrcIP, newSrcPort)
 	fmt.Printf("        Destination: %v \n \n", dstIP)
+}
+
+func printOptions() {
+	fmt.Println("Options for Running NAT:")
+	fmt.Println("   -S")
+	fmt.Println("      Silent Mode silences printing out packets when mappings are found")
+	fmt.Println("   --static-mapping")
+	fmt.Println("      Disables dynamic mapping and only allows for mappings to be added with control packets")
 }
