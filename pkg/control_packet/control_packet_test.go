@@ -10,18 +10,10 @@ import (
 )
 
 func createGoPacket(data []byte) gopacket.Packet {
-	// NOTE: No Eth Header because TAP Interface
-	//return gopacket.NewPacket(data, layers.LayerTypeEthernet, gopacket.Default)
 	return gopacket.NewPacket(data, layers.LayerTypeIPv4, gopacket.Default)
 }
 
 func getGoPacketValues(packet gopacket.Packet, t *testing.T) (dstIP net.IP, dstPort uint16) {
-	// NOTE: No Eth Header because TAP Interface
-	/* ethernetLayer := packet.Layer(layers.LayerTypeEthernet)
-	if ethernetLayer == nil {
-		t.Errorf("No Ethernet Type")
-	} */
-
 	ip4Layer := packet.Layer(layers.LayerTypeIPv4)
 	ip6Layer := packet.Layer(layers.LayerTypeIPv6)
 
@@ -57,6 +49,6 @@ func TestAddMappingPacket(t *testing.T) {
 	goPacket := createGoPacket(rawPacket)
 	expIP, expPort := getGoPacketValues(goPacket, t)
 
-	assert.Equal(t, expIP, net.IP{0x08, 0x08, 0x08, 0x08})
-	assert.Equal(t, expPort, uint16(80))
+	assert.Equal(t, expIP, net.IP{0x08, 0x08, 0x08, 0x08}) // TODO: make generalizable!
+	assert.Equal(t, expPort, uint16(80))                   // TODO: make generalizable!
 }
