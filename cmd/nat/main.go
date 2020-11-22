@@ -2,39 +2,103 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"nat_project/pkg/nat"
+	"os"
+	"time"
+
+	"github.com/google/gopacket/pcap"
+	"github.com/songgao/water"
 )
 
-// Example code for how to use and test nat table functions.
+var (
+	snapshotLen int32         = 2048
+	promiscuous bool          = false
+	timeout     time.Duration = 10 * time.Millisecond
+	outboundNat *nat.Table
+	inboundNat  *nat.Table
+)
+
+func sendPacketPCAP(handle *pcap.Handle, rawPacket []byte) {
+	err := handle.WritePacketData(rawPacket)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func sendPacketTun(writeTunIfce io.ReadWriteCloser, rawPacket []byte) {
+	writeTunIfce.Write(rawPacket)
+}
+
 func main() {
-	inToOutTable := nat.Table{}
-	inToOutTable.AddMapping([4]byte{0x01, 0x01, 0x01, 0x01}, [2]byte{0x00, 0x80}, [4]byte{0x02, 0x02, 0x02, 0x02}, [2]byte{0x00, 0x70})
-	inToOutTable.AddMapping([4]byte{0x01, 0x01, 0x01, 0x01}, [2]byte{0x00, 0x80}, [4]byte{0x02, 0x02, 0x02, 0x02}, [2]byte{0x00, 0x50})
-	inToOutTable.AddMapping([4]byte{0x03, 0x03, 0x03, 0x03}, [2]byte{0x00, 0x80}, [4]byte{0x04, 0x04, 0x04, 0x04}, [2]byte{0x00, 0x80})
-	inToOutTable.AddMapping([4]byte{0x03, 0x03, 0x03, 0x03}, [2]byte{0x00, 0x50}, [4]byte{0x04, 0x04, 0x04, 0x04}, [2]byte{0x00, 0x50})
+	argsWithProg := os.Args
+	silentMode := false
+	staticMode := false
 
-	outToInNat := nat.Table{}
-	outToInNat.AddMapping([4]byte{0x02, 0x02, 0x02, 0x02}, [2]byte{0x00, 0x70}, [4]byte{0x01, 0x01, 0x01, 0x01}, [2]byte{0x00, 0x80})
-	outToInNat.AddMapping([4]byte{0x02, 0x02, 0x02, 0x02}, [2]byte{0x00, 0x50}, [4]byte{0x05, 0x05, 0x05, 0x05}, [2]byte{0x00, 0x80})
-	outToInNat.AddMapping([4]byte{0x04, 0x04, 0x04, 0x04}, [2]byte{0x00, 0x80}, [4]byte{0x03, 0x03, 0x03, 0x03}, [2]byte{0x00, 0x80})
-	outToInNat.AddMapping([4]byte{0x04, 0x04, 0x04, 0x04}, [2]byte{0x00, 0x50}, [4]byte{0x03, 0x03, 0x03, 0x03}, [2]byte{0x00, 0x50})
-
-	inToOutTable.AddDynamicMapping([4]byte{10, 0, 0, 1}, [2]byte{0x98, 0x98}, &outToInNat)
-
-	inToOutTable.PrettyPrintTable()
-	outToInNat.PrettyPrintTable()
-
-	dstIP, dstPort, err := inToOutTable.GetMapping([4]byte{0x01, 0x01, 0x01, 0x01}, [2]byte{0x00, 0x80})
-	if err != nil {
-		fmt.Println("error")
-		return
+	if len(argsWithProg) > 1 {
+		for i := 1; i < len(argsWithProg); i++ {
+			if argsWithProg[i] == "-S" {
+				silentMode = true
+			} else if argsWithProg[i] == "--static-mapping" {
+				staticMode = true
+			} else {
+				fmt.Printf("Error: %v is an invalid option \n", argsWithProg[i])
+				printOptions()
+				return
+			}
+		}
 	}
-	fmt.Printf("%v %v \n", dstIP, dstPort)
 
-	srcIP, srcPort, err := outToInNat.GetMapping(dstIP, dstPort)
-	if err != nil {
-		fmt.Println("error")
-		return
+	// Setup NAT tables
+	outboundNat = &nat.Table{}
+	inboundNat = &nat.Table{}
+
+	// Setup TUN
+	config := water.Config{
+		DeviceType: water.TUN,
 	}
-	fmt.Printf("%v %v \n", srcIP, srcPort)
+	config.Name = "tun2" // TODO: make generalizable
+
+	ifce, err := water.New(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// file descriptors are thread(/goroutine)-safe per POSIX
+	// not sure about *os.File so make a seperate *os.File with the same fd
+	file, ok := ifce.ReadWriteCloser.(*os.File)
+	if !ok {
+		log.Fatalf("water.Interface is not backed by a fd to /dev/tun")
+	}
+
+	fd := file.Fd()
+
+	readTunIfce := os.NewFile(fd, "tunIfce")
+	writeTunIfce := ifce
+
+	go listenLAN(readTunIfce, silentMode, staticMode)
+	listenWAN(writeTunIfce, silentMode)
+}
+
+func printDestMapping(dstIP [4]byte, srcIP [4]byte, dstPort [2]byte, newDstIP [4]byte, newDstPort [2]byte) {
+	fmt.Println("Mapping Found!")
+	fmt.Printf("    Original Destination: %v:%v\n", dstIP, dstPort)
+	fmt.Printf("    	 New Destination: %v:%v \n", newDstIP, newDstPort)
+	fmt.Printf("                   Source: %v \n \n", srcIP)
+}
+
+func printSourceMapping(srcIP [4]byte, dstIP [4]byte, srcPort [2]byte, newSrcIP [4]byte, newSrcPort [2]byte) {
+	fmt.Println("Mapping Found!")
+	fmt.Printf("    Original Source: %v:%v\n", srcIP, srcPort)
+	fmt.Printf("    	 New Source: %v:%v \n", newSrcIP, newSrcPort)
+	fmt.Printf("        Destination: %v \n \n", dstIP)
+}
+
+func printOptions() {
+	fmt.Println("Options for Running NAT:")
+	fmt.Println("   -S")
+	fmt.Println("      Silent Mode silences printing out packets when mappings are found")
+	fmt.Println("   --static-mapping")
+	fmt.Println("      Disables dynamic mapping and only allows for mappings to be added with control packets")
 }
