@@ -1,3 +1,10 @@
+/* Repurposed code from gopacket in order to
+ * read from the pcap interface and put into a
+ * channel. Was put here in order to reduce the
+ * dependency on gopacket as a library (to be used on
+ * FPGA down the road)
+ */
+
 package get_packets
 
 import (
@@ -13,22 +20,6 @@ import (
 type PacketSource struct {
 	source *pcap.Handle
 	c      chan []byte
-}
-
-func Two_byte_copy(src []byte, start_idx int) [2]byte {
-	res := [2]byte{}
-	res[0] = src[start_idx]
-	res[1] = src[start_idx+1]
-	return res
-}
-
-func Four_byte_copy(src []byte, start_idx int) [4]byte {
-	res := [4]byte{}
-	res[0] = src[start_idx]
-	res[1] = src[start_idx+1]
-	res[2] = src[start_idx+2]
-	res[3] = src[start_idx+3]
-	return res
 }
 
 func NewPacketSource(source *pcap.Handle) *PacketSource {

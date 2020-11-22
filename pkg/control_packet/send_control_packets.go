@@ -1,3 +1,7 @@
+/* This file contains functions which contructs and sends
+ * control packets in order to be used with the CLI tool.
+ */
+
 package control_packet
 
 import (

@@ -1,3 +1,7 @@
+/* This file implements the structure of the nat table
+ * and also has functions that operate on the table.
+ */
+
 package nat
 
 import (

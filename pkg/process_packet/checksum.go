@@ -1,9 +1,15 @@
+/* This file is dedicated towards computer checksums for
+ * the udp/tcp header and also for the ip header. Allows us to
+ * send well formed packets that will not be dropped.
+ */
+
 package process_packet
 
 import (
 	"encoding/binary"
 )
 
+// pseudoHeader computes the checksum of the header
 func pseudoHeader(srcIP [4]byte, dstIP [4]byte) uint32 {
 	var csum uint32
 	csum += (uint32(srcIP[0]) + uint32(srcIP[2])) << 8
@@ -13,6 +19,8 @@ func pseudoHeader(srcIP [4]byte, dstIP [4]byte) uint32 {
 	return csum
 }
 
+// computeChecksum uses the psuedo header checksum in order
+// to determine the checksum of the tcp/udp packet
 func computeChecksum(data []byte, csum uint32) uint16 {
 	length := len(data) - 1
 	for i := 0; i < length; i += 2 {
@@ -28,6 +36,7 @@ func computeChecksum(data []byte, csum uint32) uint16 {
 	return ^uint16(csum)
 }
 
+// udpCheckSum computes the checksum of a udp packet
 func udpCheckSum(data []byte) {
 	srcIP, dstIP, _ := GetSrcDstIP(data[14:])
 	csum := pseudoHeader(srcIP, dstIP)
@@ -51,6 +60,7 @@ func udpCheckSum(data []byte) {
 	data[endIPHeader+7] = checksumByte[1]
 }
 
+// tcpCheckSum computes the checksum of tcp packet
 func tcpCheckSum(data []byte) {
 	srcIP, dstIP, _ := GetSrcDstIP(data[14:])
 	csum := pseudoHeader(srcIP, dstIP)
@@ -78,6 +88,8 @@ func tcpCheckSum(data []byte) {
 	data[endIPHeader+17] = checksumByte[1]
 }
 
+// updateCheckSum determines if packet is a udp or tcp packet
+// and computes the appropriate checksum
 func updateCheckSum(data []byte) {
 	protocol := uint32(data[23])
 	if protocol == 17 {
@@ -89,6 +101,7 @@ func updateCheckSum(data []byte) {
 	}
 }
 
+// computeIPCheckSum computes the checksum of the IP header
 func computeIPCheckSum(bytes []byte) uint16 {
 	bytes[10] = 0
 	bytes[11] = 0
@@ -107,6 +120,7 @@ func computeIPCheckSum(bytes []byte) uint16 {
 	return ^uint16(csum)
 }
 
+// ipCheckSum finds the checksum of the ip header
 func ipCheckSum(data []byte) {
 	endEthHeader := 14
 	endIPHeader := ((uint8(data[14]) & 0x0F) * 4) + 14

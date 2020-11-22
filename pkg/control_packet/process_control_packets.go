@@ -1,9 +1,14 @@
+/* This file contains functions which parse packets received
+ * as control packets and performed the necessary operations
+ * that they indicate.
+ */
+
 package control_packet
 
 import (
 	"fmt"
-	"nat_project/pkg/get_packets"
 	"nat_project/pkg/nat"
+	"nat_project/pkg/process_packet"
 )
 
 // Destination IP Address/Port for Control Packets
@@ -21,11 +26,11 @@ func ProcessControlPacket(packet []byte, outboundNat *nat.Table, inboundNat *nat
 	controlType := payload[0]
 
 	if controlType == 1 || controlType == 3 {
-		srcIP := get_packets.Four_byte_copy(payload, 1)
-		srcPort := get_packets.Two_byte_copy(payload, 5)
+		srcIP := process_packet.FourByteCopy(payload, 1)
+		srcPort := process_packet.TwoByteCopy(payload, 5)
 
-		dstIP := get_packets.Four_byte_copy(payload, 7)
-		dstPort := get_packets.Two_byte_copy(payload, 11)
+		dstIP := process_packet.FourByteCopy(payload, 7)
+		dstPort := process_packet.TwoByteCopy(payload, 11)
 
 		if controlType == 1 {
 			outboundNat.AddMapping(srcIP, srcPort, dstIP, dstPort)
