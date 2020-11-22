@@ -1,44 +1,86 @@
 # NAT Project
 
-## Example 
-Scroll down for more information about how to run! 
+### Table of Contents
+- [Demo Instructions](#Demo)
+- [NAT](#NAT)
+    * [Capturing Packets](#Capturing-Packets)
+    * [Options](#Running-NAT)
+- [Control Packets](#Control-Packets)
+    * [Control CLI](#Control-CLI)
+- [Tests](#Tests)
+- [Remaining Work](#Remaining-Work)
+    * [General Improvements](#General-Improvements)
+    * [FPGA Improvements](#FPGA-Improvements)
 
-Run packets (in silent mode!!) in one terminal window: 
+
+## Demo 
+
+Make and run `nat`. The `-S` option can be used to put the nat in silent mode. 
 ``` sh 
-$ make packets
-$ packets -S
+$ make nat
+# if you get "command not found" run "source ./scripts/add-to-path.sh"
+$ NAT=$(which nat)
+# without silent mode: 
+$ sudo $NAT
+# with silent mode: 
+$ sudo $NAT -S
 ``` 
 
-Configure the TUN and VM
+Configure the TUN interface: 
 ``` sh 
 $ source scripts/set-tun.sh
 ``` 
 
-A mapping will be added dynamically to the NAT and will allow the packets to pass through. The response will give us the homepage of google. 
+Add IP Routes for google and wikipedia, which will run packets through the NAT. 
+``` sh 
+$ source scripts/demo.sh
+```
 
+Run a curl command to google: 
 ```sh 
 $ sudo curl --verbose --interface tun2 -ipv4 https://www.google.com
 ``` 
 
+Open lynx and browse google and wikipedia: 
+```sh 
+$ lynx google.com
+``` 
+
+Optionally open `tcpdump` to view packets passing through the two interfaces! 
+
 --- 
-## How to Run 
-### Creating Control Packets 
+## NAT 
+### Capturing Packets 
+The NAT listens on two interfaces. The TUN (tun2) interface is considered the LAN side of the network while the eth interface (enp0s3) is considered the WAN side of the network. 
 
-```sh
-$ make control
-$ control
-Invalid Number of Arguments
-Looking for: (control type)
-Looking for: (control type) (sourceIP) (sourcePort) (destinationIP) (destinationPort)
-   control types:
-       1 -> add outbound mapping
-       2 -> list current mappings
-       3 -> add inbound mapping
- # if you get "command not found" run "source ./scripts/add-to-path.sh"
+By default, the NAT will use dynamic mapping in order to create mappings from a specific LAN IP and Port to a WAN IP and Port. The NAT also takes control packets which allows the user to add static mappings for both the WAN and LAN side of the NAT. 
+
+### Running NAT 
+First you must make the nat and make sure that you have root privileges. 
+``` sh 
+$ make nat
+# if you get "command not found" run "source ./scripts/add-to-path.sh"
+$ NAT=$(which nat)
+$ sudo $NAT
 ```
-Control packets currently have the following structure: 
 
-IPv4 Header: 
+You can run the NAT with a couple options which are specified as: 
+``` sh
+Options for Running NAT:
+   -S
+      Silent Mode silences printing out packets when mappings are found
+   --static-mapping
+      Disables dynamic mapping and only allows for mappings to be added with control packets
+```
+
+The NAT will run continuously until it is closed with `^C`. 
+
+---
+## Control Packets 
+
+Control is a command line tool which allows us to create and send fully formed control packets to the NAT program. The control packets are IPv4 on top of UDP, with a special payload format. 
+
+IPv4 Header:
 * Source IP: 8.8.8.8
 
 UDP Header: 
@@ -46,61 +88,70 @@ UDP Header:
 
 Payload: 
 * Control Type (1 Byte)
-    * 0x01 = Add Mapping (Internal -> External) 
+    * 0x01 = Add Mapping (LAN -> WAN) 
     * 0x02 = List Mappings 
-    * 0x03 = Add Mapping (External -> Internal) 
-* Source IP (4 Bytes) 
-* Destination IP (4 Bytes) 
-* Source Port (2 Bytes)
-    * Note: A source port of 0 will be considered as a wildcard and will only match the source IP 
-* Destination Port (2 Bytes) 
+    * 0x03 = Add Mapping (WAN -> LAN) 
+* From IP (4 Bytes) 
+* To IP (4 Bytes) 
+* From Port (2 Bytes)
+    * A source port of 0 will be considered as a wildcard and will only match the source IP 
+* To Port (2 Bytes) 
 
-Example/ This will add a mapping from 1.1.1.1/80 to 2.2.2.2/80 in the NAT table. 
+### Control CLI 
+
+The program provides a Command Line Interface for creating and sending control packets with the proper format as described above.
 ```sh
 $ make control
-$ control 1 1.1.1.1 80 2.2.2.2 80 
-```
-
-### Capturing Packets 
-This will capture packets and filter between being a control packet and a packet whose IP/Port need to rewritten. Right now, we only consider packets with IPv4/IPv6 and UDP/TCP. However, we do not currently get the ports for the IPv6 header. 
-
-For now, packets are not being rewritten and sent out. But they are being detected and a print statement is made when we
-detect a packet that has a mapping and what the mapping is. 
-
-```sh
-$ make packets
-$ packets
  # if you get "command not found" run "source ./scripts/add-to-path.sh"
+$ CTRL=$(which control)
+$ sudo $CTRL
+Error: Invalid Number of Arguments
+Looking for: (control type)
+   control types:
+       2 -> list current mappings
+Looking for: (control type) (fromIP) (fromPort) (toIP) (toPort)
+   control types:
+       1 -> add outbound mapping
+       3 -> add inbound mapping
 ```
 
-### Testing NAT Program 
-In order to better test and develope the actual NAT part of the project we can use `nat`. 
-
-```sh
-$ make nat
-$ nat
- # if you get "command not found" run "source ./scripts/add-to-path.sh"
+Sending a control packet to list mappings would look like: 
+``` sh 
+$ sudo $CTRL 2
 ```
 
-This is just as a sanity check and for checking the proper operation. 
-
----
+Sending a packet to create a LAN to WAN mapping would look like: 
+``` sh 
+$ sudo $CTRL 1 1.1.1.1 80 2.2.2.2 80 
+```
+--- 
 ## Tests
-In addition, there are test files implemented in order to test the functionality of every part of the project. The are located in each of the subdirectories in `pkg`, and end with `_test.go`. 
+There are test files implemented in order to verify the functionality of every part of the project. They are located in each of the subdirectories in `pkg`, and end with `_test.go`. 
 
 ---
-
-## Left Todo
+## Remaining Work
 ### General Improvements
-- implement mutex locks on the NAT mapping so that we do not run into any weird situations 
-- NAT is much faster now, but still a little bit slow loading google home page...maybe stop using pcap for injecting packets??
-- generalize code 
+- Mutex Locks for LAN/WAN NAT
+- Improve performance. Potentially removing GoPacket? 
+- Generalize Code with configuration file or something similar 
     * take interface names as input 
     * take interface IPs as input 
-    * remove hard coded eth headers (i think those are still there?)
+    * remove hard coded eth headers
 
 
 ### FPGA Improvements 
 - try and remove := (static variables)
 - remove byte slices (this might be a little complicated -- have to see)
+
+
+
+
+
+
+
+
+
+
+
+
 
