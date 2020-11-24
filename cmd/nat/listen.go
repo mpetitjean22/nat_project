@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
@@ -91,7 +92,7 @@ func listenLAN(readTunIfce io.ReadWriteCloser, silentMode bool, staticMode bool)
 			continue
 		}
 
-		if dstIP == control_packet.ControlIP && dstPort == control_packet.ControlPort {
+		if dstIP == nat.Configs.Ctrl.IP && binary.BigEndian.Uint16(dstPort[:]) == nat.Configs.Ctrl.Port {
 			control_packet.ProcessControlPacket(packetData, outboundNat, inboundNat)
 		} else {
 			newIP, newPort, err := outboundNat.GetMapping(srcIP, srcPort)

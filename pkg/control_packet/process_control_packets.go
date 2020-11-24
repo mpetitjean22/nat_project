@@ -11,15 +11,7 @@ import (
 	"nat_project/pkg/process_packet"
 )
 
-// Destination IP Address/Port for Control Packets
-var (
-	ControlIP   = [4]byte{0x08, 0x08, 0x08, 0x08} // TODO: make generalizable!
-	ControlPort = [2]byte{0x00, 0x50}             // TODO: make generalizable!
-)
-
-// ProcessControlPacket processes the control packets with the following form:
-// 			-> dstIP: 8.8.8.8
-// 			-> dstPort: 80
+// ProcessControlPacket processes the control packets where IP/Port is specified in Config.yaml
 func ProcessControlPacket(packet []byte, outboundNat *nat.Table, inboundNat *nat.Table) {
 	ihl := uint8(packet[0]) & 0x0F
 	payload := packet[8+(ihl*4):]

@@ -5,7 +5,10 @@
 
 package process_packet
 
-import "fmt"
+import (
+	"fmt"
+	"nat_project/pkg/nat"
+)
 
 // WriteSource takes a packet (without a ethernet header!) and rewrites the source IP
 // and source port. Recomputes the checksum and returns the new raw byte packet with ethernet
@@ -27,9 +30,9 @@ func WriteSource(data []byte, srcIP [4]byte, srcPort [2]byte) ([65535]byte, erro
 		endIPEthHeaders = endEthHeader + int(endIPHeader)
 
 		// copy eth header
-		// TODO: make generalizable!
-		ethHeader := []byte{0x52, 0x54, 0x00, 0x12, 0x35, 0x02, 0x08, 0x00, 0x27, 0xfd, 0x06, 0x32, 0x08, 0x00}
-		newPacket = packetCopy(newPacket, 0, ethHeader, 0, 14)
+		newPacket = packetCopy(newPacket, 0, nat.Configs.WAN.Src[:], 0, 6)
+		newPacket = packetCopy(newPacket, 6, nat.Configs.WAN.Dst[:], 0, 6)
+		newPacket = packetCopy(newPacket, 12, []byte{0x08, 0x00}, 0, 2)
 
 		// copy ipv4 header (with new source IP)
 		newPacket = packetCopy(newPacket, 14, data, 0, 12)

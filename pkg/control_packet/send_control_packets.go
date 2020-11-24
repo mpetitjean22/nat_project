@@ -69,14 +69,14 @@ func SendListMappings() {
 func createControlPacket(payload []byte) []byte {
 	ipLayer := &layers.IPv4{
 		SrcIP:    net.IP(nat.Configs.LAN.IP[:]),
-		DstIP:    net.IP{8, 8, 8, 8}, // TODO: make generalizable!
+		DstIP:    net.IP(nat.Configs.Ctrl.IP[:]),
 		Version:  4,
 		TTL:      10,
 		Protocol: layers.IPProtocolUDP,
 	}
 	udpLayer := &layers.UDP{
-		SrcPort: layers.UDPPort(80), // TODO: make generalizable!
-		DstPort: layers.UDPPort(80), // TODO: make generalizable!
+		SrcPort: layers.UDPPort(80),
+		DstPort: layers.UDPPort(nat.Configs.Ctrl.Port),
 	}
 	udpLayer.SetNetworkLayerForChecksum(ipLayer)
 

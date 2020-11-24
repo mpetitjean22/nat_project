@@ -1,6 +1,7 @@
 package control_packet
 
 import (
+	"nat_project/pkg/nat"
 	"net"
 	"testing"
 
@@ -40,6 +41,6 @@ func TestAddMappingPacket(t *testing.T) {
 	goPacket := createGoPacket(rawPacket)
 	expIP, expPort := getGoPacketValues(goPacket, t)
 
-	assert.Equal(t, expIP, net.IP{0x08, 0x08, 0x08, 0x08}) // TODO: make generalizable!
-	assert.Equal(t, expPort, uint16(80))                   // TODO: make generalizable!
+	assert.Equal(t, expIP, net.IP(nat.Configs.Ctrl.IP[:]))
+	assert.Equal(t, expPort, nat.Configs.Ctrl.Port)
 }

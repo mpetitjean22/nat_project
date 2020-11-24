@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
@@ -86,16 +87,22 @@ func main() {
 
 func printDestMapping(dstIP [4]byte, srcIP [4]byte, dstPort [2]byte, newDstIP [4]byte, newDstPort [2]byte) {
 	fmt.Println("Mapping Found!")
-	fmt.Printf("    Original Destination: %v:%v\n", dstIP, dstPort)
-	fmt.Printf("    	 New Destination: %v:%v \n", newDstIP, newDstPort)
-	fmt.Printf("                   Source: %v \n \n", srcIP)
+	fmt.Printf("    Original Destination:")
+	printAddressPort(dstIP, dstPort)
+	fmt.Printf("    	 New Destination:")
+	printAddressPort(newDstIP, newDstPort)
 }
 
 func printSourceMapping(srcIP [4]byte, dstIP [4]byte, srcPort [2]byte, newSrcIP [4]byte, newSrcPort [2]byte) {
 	fmt.Println("Mapping Found!")
-	fmt.Printf("    Original Source: %v:%v\n", srcIP, srcPort)
-	fmt.Printf("    	 New Source: %v:%v \n", newSrcIP, newSrcPort)
-	fmt.Printf("        Destination: %v \n \n", dstIP)
+	fmt.Printf("    Original Source:")
+	printAddressPort(srcIP, srcPort)
+	fmt.Printf("    	 New Source:")
+	printAddressPort(newSrcIP, newSrcPort)
+}
+
+func printAddressPort(ip [4]byte, port [2]byte) {
+	fmt.Printf("%d.%d.%d.%d:%d \n", ip[0], ip[1], ip[2], ip[3], binary.BigEndian.Uint16(port[:]))
 }
 
 func printOptions() {
