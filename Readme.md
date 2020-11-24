@@ -19,11 +19,10 @@ Make and run `nat`. The `-S` option can be used to put the nat in silent mode.
 ``` sh 
 $ make nat
 # if you get "command not found" run "source ./scripts/add-to-path.sh"
-$ NAT=$(which nat)
 # without silent mode: 
-$ sudo $NAT
+$ sudo $(which nat)
 # with silent mode: 
-$ sudo $NAT -S
+$ sudo $(which nat) -S
 ``` 
 
 Configure the TUN interface: 
@@ -60,8 +59,7 @@ First you must make the nat and make sure that you have root privileges.
 ``` sh 
 $ make nat
 # if you get "command not found" run "source ./scripts/add-to-path.sh"
-$ NAT=$(which nat)
-$ sudo $NAT
+$ sudo $(which nat)
 ```
 
 You can run the NAT with a couple options which are specified as: 
@@ -103,8 +101,7 @@ The program provides a Command Line Interface for creating and sending control p
 ```sh
 $ make control
  # if you get "command not found" run "source ./scripts/add-to-path.sh"
-$ CTRL=$(which control)
-$ sudo $CTRL
+$ sudo $(which control)
 Error: Invalid Number of Arguments
 Looking for: (control type)
    control types:
@@ -117,12 +114,12 @@ Looking for: (control type) (fromIP) (fromPort) (toIP) (toPort)
 
 Sending a control packet to list mappings would look like: 
 ``` sh 
-$ sudo $CTRL 2
+$ sudo $(which control) 2
 ```
 
 Sending a packet to create a LAN to WAN mapping would look like: 
 ``` sh 
-$ sudo $CTRL 1 1.1.1.1 80 2.2.2.2 80 
+$ sudo $(which control) 1 1.1.1.1 80 2.2.2.2 80 
 ```
 --- 
 ## Tests
@@ -132,10 +129,6 @@ There are test files implemented in order to verify the functionality of every p
 ## Remaining Work
 ### General Improvements
 - Mutex Locks for LAN/WAN NAT
-- Generalize Code with configuration YAML  
-    * remove hard coded eth headers
-    * configure the NAT control packet destination IP/Port
-
 
 ### FPGA Improvements 
 - try and remove := (static variables)
