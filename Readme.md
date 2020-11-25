@@ -2,6 +2,7 @@
 
 ### Table of Contents
 - [Demo Instructions](#Demo)
+- [Configuations](#Configuations)
 - [NAT](#NAT)
     * [Capturing Packets](#Capturing-Packets)
     * [Options](#Running-NAT)
@@ -46,6 +47,27 @@ $ lynx google.com
 ``` 
 
 Optionally open `tcpdump` to view packets passing through the two interfaces! 
+
+--- 
+## Configuations 
+In order to make the NAT and Control programs easier to use, the `config.yaml` file allows the user to easily change and specify configuations. 
+
+``` 
+LAN-Interface:          # specifies tun interface
+  Name: tun2            # name of tun interface that is created
+  IP: [10,0,0,1]        # ip address of the tunu interface 
+  
+WAN-Interface:          # specifies eth interface 
+  Name: enp0s3
+  IP: [10,0,2,15]
+  Src-MAC: [0x52,0x54,0x00,0x12,0x35,0x02]
+  Dst-MAC: [0x08,0x00,0x27,0xfd,0x06,0x32]
+
+Control-Packet: 
+  IP: [10,0,0,2]        # dest IP of the control packets 
+  Port: 80              # dest Port of the control packets 
+```
+It is important to note that these values are not validated for correctness so it is up to the user to provide configurations that are correct. Additionally, `tun2` is the tun name used in the scripts, so if you change this value be sure to change the scripts or do not use them. 
 
 --- 
 ## NAT 
