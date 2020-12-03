@@ -12,7 +12,7 @@ import (
 )
 
 // ProcessControlPacket processes the control packets where IP/Port is specified in Config.yaml
-func ProcessControlPacket(packet []byte, outboundNat *nat.Table, inboundNat *nat.Table) {
+func ProcessControlPacket(packet []byte, outboundNat nat.NAT, inboundNat nat.NAT) {
 	ihl := uint8(packet[0]) & 0x0F
 	payload := packet[8+(ihl*4):]
 	controlType := payload[0]

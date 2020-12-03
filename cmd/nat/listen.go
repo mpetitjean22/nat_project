@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"log"
 	"nat_project/pkg/control_packet"
@@ -13,18 +12,7 @@ import (
 	"github.com/google/gopacket/pcap"
 )
 
-func listenWAN(writeTunIfce io.ReadWriteCloser, silentMode bool) {
-	handle, err := pcap.OpenLive(nat.Configs.WAN.Name, snapshotLen, promiscuous, timeout)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer handle.Close()
-
-	fmt.Printf("Capturing Packets on %s \n", nat.Configs.WAN.Name)
-	fmt.Printf("Silent Mode: %v \n", silentMode)
-
-	packetSource := get_packets.NewPacketSource(handle)
-
+func listenWAN(packetSource *get_packets.PacketSource, writeTunIfce io.ReadWriteCloser, silentMode bool) {
 	for packetData := range packetSource.Packets() {
 
 		ethProtocol, err := process_packet.GetEthProtocol(packetData)
@@ -70,8 +58,6 @@ func listenLAN(readTunIfce io.ReadWriteCloser, silentMode bool, staticMode bool)
 	defer handle.Close()
 
 	buffer := make([]byte, 65535)
-	fmt.Printf("Capturing Packets on %s \n", nat.Configs.LAN.Name)
-	fmt.Printf("Silent Mode: %v \n", silentMode)
 
 	for {
 		n, err := readTunIfce.Read(buffer)

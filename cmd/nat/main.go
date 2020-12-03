@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"nat_project/pkg/get_packets"
 	"nat_project/pkg/nat"
 	"os"
 	"time"
@@ -17,8 +18,8 @@ var (
 	snapshotLen int32         = 65535
 	promiscuous bool          = false
 	timeout     time.Duration = 10 * time.Millisecond
-	outboundNat *nat.Table
-	inboundNat  *nat.Table
+	outboundNat nat.NAT
+	inboundNat  nat.NAT
 )
 
 func sendPacketPCAP(handle *pcap.Handle, rawPacket []byte) {
@@ -68,6 +69,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer ifce.Close()
 
 	// file descriptors are thread(/goroutine)-safe per POSIX
 	// not sure about *os.File so make a seperate *os.File with the same fd
@@ -78,11 +80,36 @@ func main() {
 
 	fd := file.Fd()
 
-	readTunIfce := os.NewFile(fd, "tunIfce")
-	writeTunIfce := ifce
+	// shared channel for WAN reading
+	handle, err := pcap.OpenLive(nat.Configs.WAN.Name, snapshotLen, promiscuous, timeout)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer handle.Close()
 
-	go listenLAN(readTunIfce, silentMode, staticMode)
-	listenWAN(writeTunIfce, silentMode)
+	packetSource := get_packets.NewPacketSource(handle)
+
+	// print listening details
+	fmt.Printf("WAN Packets on %s\n", nat.Configs.WAN.Name)
+	fmt.Printf("LAN Packets on %s\n", nat.Configs.LAN.Name)
+	fmt.Printf("Silent Mode: %v\n", silentMode)
+
+	numLANGoRoutines := 10
+	numWANGoRoutines := 10
+
+	for i := 0; i < numLANGoRoutines; i++ {
+		readTunIfce := os.NewFile(fd, "tunIfce")
+		go listenLAN(readTunIfce, silentMode, staticMode)
+	}
+
+	for i := 0; i < numWANGoRoutines; i++ {
+		writeTunIfce := os.NewFile(fd, "tunIfce")
+		go listenWAN(packetSource, writeTunIfce, silentMode)
+	}
+
+	// hack to keep main thread alive
+	blockChan := make(chan interface{})
+	<-blockChan
 }
 
 func printDestMapping(dstIP [4]byte, srcIP [4]byte, dstPort [2]byte, newDstIP [4]byte, newDstPort [2]byte) {

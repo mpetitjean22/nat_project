@@ -14,16 +14,17 @@ import (
 // and source port. Recomputes the checksum and returns the new raw byte packet with ethernet
 // header designed to be sent out on eth interface.
 func WriteSource(data []byte, srcIP [4]byte, srcPort [2]byte) ([65535]byte, error) {
+	var newPacket [65535]byte
 	var version byte
+
 	version = data[0] >> 4
 
 	if len(data) > 65535 {
-		return [65535]byte{}, fmt.Errorf("Packet too large for buffer")
+		return newPacket, fmt.Errorf("Packet too large for buffer")
 	}
 
 	if version == 4 {
 		var endEthHeader, endIPHeader, endIPEthHeaders int
-		var newPacket [65535]byte
 
 		endEthHeader = 14
 		endIPHeader = int((uint8(data[0]) & 0x0F) * 4)
@@ -49,20 +50,20 @@ func WriteSource(data []byte, srcIP [4]byte, srcPort [2]byte) ([65535]byte, erro
 		return newPacket, nil
 	}
 
-	return [65535]byte{}, fmt.Errorf("Invalid IP Version")
+	return newPacket, fmt.Errorf("Invalid IP Version")
 }
 
 // WriteDestination takes a packets (with ethernet header!) and rewritest the destination IP
 // and destination port. Recomputes the checksum and returns the new raw byte packets
 // with ethernet header (which should be dropped when sending on tun interface)
 func WriteDestination(data []byte, dstIP [4]byte, dstPort [2]byte) ([65535]byte, error) {
+	var newPacket [65535]byte
 	var version byte
 
 	version = data[14] >> 4
 
 	if version == 4 {
 		var endEthHeader, endIPHeader, endIPEthHeaders int
-		var newPacket [65535]byte
 		endEthHeader = 14
 		endIPHeader = int((uint8(data[14]) & 0x0F) * 4)
 		endIPEthHeaders = endEthHeader + int(endIPHeader)
@@ -86,5 +87,5 @@ func WriteDestination(data []byte, dstIP [4]byte, dstPort [2]byte) ([65535]byte,
 		return newPacket, nil
 	}
 
-	return [65535]byte{}, fmt.Errorf("Invalid IP Version")
+	return newPacket, fmt.Errorf("Invalid IP Version")
 }
