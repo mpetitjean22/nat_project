@@ -83,6 +83,9 @@ func listenLAN(readTunIfce io.ReadWriteCloser, silentMode bool, staticMode bool)
 		} else {
 			newIP, newPort, err := outboundNat.GetMapping(srcIP, srcPort)
 			if err != nil && !staticMode {
+				newIP = nat.Configs.WAN.IP
+				newPort = srcPort
+				err = nil
 				outboundNat.AddDynamicMapping(srcIP, srcPort, inboundNat)
 			}
 			if err == nil || !staticMode {
