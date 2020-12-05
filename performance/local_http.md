@@ -19,7 +19,7 @@ When we want the httperf to run through the NAT, then we must set an ip route to
 $ sudo ip route add 10.0.0.123 dev tun2
 ``` 
 
-## Conclusion 
+## Results 
 
 ### Connection Times
 ``` sh
@@ -70,7 +70,8 @@ Errors: fd-unavail 0 addrunavail 0 ftab-full 0 other 0
 
 While the NAT introduced some latency, it was overall effective in completing connections without any errors or timeouts. This would indicate that the NAT is effectively functional in situations that require create a large amount of connections, with some connections being sent out simultaneously. 
 
-## Without NAT
+# Data 
+## NAT
 ``` sh
 marie@cs352:~$ httperf --server 10.0.0.123 --port 8080 --verbose --rate 100 --num-conn 8000 --timeout 20
 httperf --verbose --timeout=20 --client=0/1 --server=10.0.0.123 --port=8080 --uri=/ --rate=100 --send-buffer=4096 --recv-buffer=16384 --num-conns=8000 --num-calls=1
@@ -114,7 +115,7 @@ Errors: total 0 client-timo 0 socket-timo 0 connrefused 0 connreset 0
 Errors: fd-unavail 0 addrunavail 0 ftab-full 0 other 0
 ```
 
-## With NAT 
+## No NAT 
 ``` sh 
 marie@cs352:~$ httperf --server 10.0.0.123 --port 8080 --verbose --rate 100 --num-conn 8000 --timeout 20
 httperf --verbose --timeout=20 --client=0/1 --server=10.0.0.123 --port=8080 --uri=/ --rate=100 --send-buffer=4096 --recv-buffer=16384 --num-conns=8000 --num-calls=1
