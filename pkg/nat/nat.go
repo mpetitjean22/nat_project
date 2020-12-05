@@ -6,6 +6,7 @@ package nat
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"sync"
 )
@@ -21,7 +22,7 @@ type NAT interface {
 
 // Table is the struct which holds the NAT Table data structure.
 type Table struct {
-	natTable map[IPv4Address]*IPv4Address
+	natTable map[IPv4Address]IPv4Address
 	rwMu     sync.RWMutex
 }
 
@@ -38,24 +39,24 @@ type IPv4Address struct {
 // 		DESTINATION: 		10.0.2.15 	(port #m) -> 	10.0.0.1 	(port #n)
 // port #m could be randomly assigned as an improvement, but for now #m = #n.
 func (nat *Table) AddDynamicMapping(srcIP [4]byte, srcPort [2]byte, inboundNat NAT) {
-	key := IPv4Address{
-		srcIP,
-		srcPort,
-	}
+	//key := IPv4Address{
+	//	srcIP,
+	//	srcPort,
+	//}
 
-	nat.rwMu.RLock()
-	_, hasMapping := nat.natTable[key]
-	nat.rwMu.RUnlock()
+	// nat.rwMu.RLock()
+	// _, hasMapping := nat.natTable[key]
+	// nat.rwMu.RUnlock()
 
-	if !hasMapping {
-		nat.AddMapping(srcIP, srcPort, Configs.WAN.IP, srcPort)
-		inboundNat.AddMapping(Configs.WAN.IP, srcPort, srcIP, srcPort)
-	}
+	// if !hasMapping {
+	nat.AddMapping(srcIP, srcPort, Configs.WAN.IP, srcPort)
+	inboundNat.AddMapping(Configs.WAN.IP, srcPort, srcIP, srcPort)
+	// }
 }
 
 // AddMapping simply adds a mapping to the table from (srcIP, srcPort) to (dstIP, dstPort)
 func (nat *Table) AddMapping(srcIP [4]byte, srcPort [2]byte, dstIP [4]byte, dstPort [2]byte) {
-	var mapping *IPv4Address
+	//var mapping IPv4Address
 	var key IPv4Address
 
 	key = IPv4Address{
@@ -67,24 +68,30 @@ func (nat *Table) AddMapping(srcIP [4]byte, srcPort [2]byte, dstIP [4]byte, dstP
 	defer nat.rwMu.Unlock()
 
 	if nat.natTable == nil {
-		nat.natTable = make(map[IPv4Address]*IPv4Address)
+		nat.natTable = make(map[IPv4Address]IPv4Address)
 	}
 
-	mapping, hasMapping := nat.natTable[key]
-	if !hasMapping {
-		mapping = &IPv4Address{}
+	//mapping, hasMapping := nat.natTable[key]
+	/* if !hasMapping {
+		mapping = IPv4Address{}
 		nat.natTable[key] = mapping
+	} else {
+
+	}*/
+	nat.natTable[key] = IPv4Address{
+		dstIP,
+		dstPort,
 	}
-	mapping.ipAdress = dstIP
-	mapping.port = dstPort
 }
+
+var ErrNotFound = errors.New("Not Found")
 
 // GetMapping returns the mapping of ip address and port if found, otherwise returns
 // an error with not found. A port number of 0 is considered to be a wild card in which
 // any port could match to.
 func (nat *Table) GetMapping(srcIP [4]byte, srcPort [2]byte) ([4]byte, [2]byte, error) {
 	var key IPv4Address
-	var value *IPv4Address
+	var value IPv4Address
 	var ok bool
 
 	key = IPv4Address{
@@ -98,13 +105,10 @@ func (nat *Table) GetMapping(srcIP [4]byte, srcPort [2]byte) ([4]byte, [2]byte, 
 	value, ok = nat.natTable[key]
 	if !ok {
 		// check if a wildcard exists
-		key = IPv4Address{
-			srcIP,
-			[2]byte{0x00, 0x00},
-		}
+		key.port = [2]byte{0x00, 0x00}
 		value, ok = nat.natTable[key]
 		if !ok {
-			return [4]byte{}, [2]byte{}, fmt.Errorf("Not Found")
+			return value.ipAdress, value.port, ErrNotFound
 		}
 	}
 	return value.ipAdress, value.port, nil
@@ -119,7 +123,7 @@ func (nat *Table) PrettyPrintTable() {
 	for key, value := range nat.natTable {
 		prettyPrintAdress(key)
 		fmt.Printf(" to ")
-		prettyPrintAdress(*value)
+		prettyPrintAdress(value)
 		fmt.Printf("\n")
 	}
 	fmt.Println("--------------------------")

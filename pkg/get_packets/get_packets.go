@@ -12,7 +12,6 @@ import (
 	"net"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/google/gopacket/pcap"
 )
@@ -64,13 +63,13 @@ func (p *PacketSource) packetsToChannel() {
 		}
 
 		// Sleep briefly and try again
-		time.Sleep(time.Millisecond * time.Duration(5))
+		// time.Sleep(time.Millisecond * time.Duration(5))
 	}
 }
 
 func (p *PacketSource) Packets() chan []byte {
 	if p.c == nil {
-		p.c = make(chan []byte, 1000)
+		p.c = make(chan []byte, 10000)
 		go p.packetsToChannel()
 	}
 	return p.c

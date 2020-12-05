@@ -8,6 +8,8 @@ import (
 	"nat_project/pkg/get_packets"
 	"nat_project/pkg/nat"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/google/gopacket/pcap"
@@ -34,6 +36,17 @@ func sendPacketTun(writeTunIfce io.ReadWriteCloser, rawPacket []byte) {
 }
 
 func main() {
+	// Setup up SIGINT handler channel for graceful shutdown
+	signals := make(chan os.Signal, 1)
+	done := make(chan bool, 1)
+
+	signal.Notify(signals, syscall.SIGINT)
+
+	go func() {
+		<-signals // block until SIGINT sent on channel
+		done <- true
+	}()
+
 	// configures NAT with settings, will fatalf if something goes wrong
 	nat.ConfigureNAT()
 
@@ -94,22 +107,25 @@ func main() {
 	fmt.Printf("LAN Packets on %s\n", nat.Configs.LAN.Name)
 	fmt.Printf("Silent Mode: %v\n", silentMode)
 
-	numLANGoRoutines := 10
-	numWANGoRoutines := 10
+	numLANGoRoutines := 1
+	numWANGoRoutines := 1
 
 	for i := 0; i < numLANGoRoutines; i++ {
 		readTunIfce := os.NewFile(fd, "tunIfce")
+		defer readTunIfce.Close()
+
 		go listenLAN(readTunIfce, silentMode, staticMode)
 	}
 
 	for i := 0; i < numWANGoRoutines; i++ {
 		writeTunIfce := os.NewFile(fd, "tunIfce")
+		defer writeTunIfce.Close()
+
 		go listenWAN(packetSource, writeTunIfce, silentMode)
 	}
 
-	// hack to keep main thread alive
-	blockChan := make(chan interface{})
-	<-blockChan
+	// block until SIGINT
+	<-done
 }
 
 func printDestMapping(dstIP [4]byte, srcIP [4]byte, dstPort [2]byte, newDstIP [4]byte, newDstPort [2]byte) {
