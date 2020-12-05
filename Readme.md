@@ -150,8 +150,10 @@ There are test files implemented in order to verify the functionality of every p
 ---
 ## Remaining Work
 ### General Improvements
-- Mutex Locks for LAN/WAN NAT
-
+- write up on performance tests 
+- write up on sakai 
+- clean up some code from performance improvements (got a little messy) 
+- update readme with information about multiple go routines 
 ### FPGA Improvements 
 - try and remove := (static variables)
 - remove byte slices (this might be a little complicated -- have to see)
