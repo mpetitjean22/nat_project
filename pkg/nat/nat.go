@@ -17,6 +17,7 @@ type NAT interface {
 	AddMapping(srcIP [4]byte, srcPort [2]byte, dstIP [4]byte, dstPort [2]byte)
 	AddDynamicMapping(srcIP [4]byte, srcPort [2]byte, inboundNat NAT)
 	GetMapping(srcIP [4]byte, srcPort [2]byte) ([4]byte, [2]byte, error)
+	HasMapping(srcIP [4]byte, srcPort [2]byte) bool
 	PrettyPrintTable()
 }
 
@@ -39,19 +40,8 @@ type IPv4Address struct {
 // 		DESTINATION: 		10.0.2.15 	(port #m) -> 	10.0.0.1 	(port #n)
 // port #m could be randomly assigned as an improvement, but for now #m = #n.
 func (nat *Table) AddDynamicMapping(srcIP [4]byte, srcPort [2]byte, inboundNat NAT) {
-	//key := IPv4Address{
-	//	srcIP,
-	//	srcPort,
-	//}
-
-	// nat.rwMu.RLock()
-	// _, hasMapping := nat.natTable[key]
-	// nat.rwMu.RUnlock()
-
-	// if !hasMapping {
 	nat.AddMapping(srcIP, srcPort, Configs.WAN.IP, srcPort)
 	inboundNat.AddMapping(Configs.WAN.IP, srcPort, srcIP, srcPort)
-	// }
 }
 
 // AddMapping simply adds a mapping to the table from (srcIP, srcPort) to (dstIP, dstPort)
@@ -112,6 +102,24 @@ func (nat *Table) GetMapping(srcIP [4]byte, srcPort [2]byte) ([4]byte, [2]byte, 
 		}
 	}
 	return value.ipAdress, value.port, nil
+}
+
+// HasMapping returns the whether a mapping exists for a given srcIP and srcPort
+// pair.
+func (nat *Table) HasMapping(srcIP [4]byte, srcPort [2]byte) bool {
+	key := IPv4Address{
+		srcIP,
+		srcPort,
+	}
+
+	nat.rwMu.RLock()
+	defer nat.rwMu.RUnlock()
+
+	_, ok := nat.natTable[key]
+	key.port = [2]byte{0, 0}
+	_, okWild := nat.natTable[key]
+
+	return ok || okWild
 }
 
 // PrettyPrintTable prints the current nat table in a readable format

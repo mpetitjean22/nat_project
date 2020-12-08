@@ -81,14 +81,13 @@ func listenLAN(readTunIfce io.ReadWriteCloser, silentMode bool, staticMode bool)
 		if dstIP == nat.Configs.Ctrl.IP && binary.BigEndian.Uint16(dstPort[:]) == nat.Configs.Ctrl.Port {
 			control_packet.ProcessControlPacket(packetData, outboundNat, inboundNat)
 		} else {
-			newIP, newPort, err := outboundNat.GetMapping(srcIP, srcPort)
-			if err != nil && !staticMode {
-				newIP = nat.Configs.WAN.IP
-				newPort = srcPort
-				err = nil
+			mappingExists := outboundNat.HasMapping(srcIP, srcPort)
+			if !mappingExists && !staticMode {
 				outboundNat.AddDynamicMapping(srcIP, srcPort, inboundNat)
 			}
-			if err == nil || !staticMode {
+
+			newIP, newPort, err := outboundNat.GetMapping(srcIP, srcPort)
+			if err == nil {
 				if !silentMode {
 					printSourceMapping(srcIP, dstIP, srcPort, newIP, newPort)
 				}
