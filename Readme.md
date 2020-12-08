@@ -66,6 +66,10 @@ WAN-Interface:          # specifies eth interface
 Control-Packet: 
   IP: [10,0,0,2]        # dest IP of the control packets 
   Port: 80              # dest Port of the control packets 
+
+NAT: 
+  WAN-Routines: 1       # number of routines (still in testing)
+  LAN-Routines: 1
 ```
 It is important to note that these values are not validated for correctness so it is up to the user to provide configurations that are correct. Additionally, `tun2` is the tun name used in the scripts, so if you change this value be sure to change the scripts or do not use them. 
 
@@ -150,12 +154,8 @@ There are test files implemented in order to verify the functionality of every p
 ---
 ## Remaining Work
 ### General Improvements
-- write up on performance tests 
-- write up on sakai 
-- clean up some code from performance improvements (got a little messy) 
-- update readme with information about multiple go routines 
-### FPGA Improvements 
-- try and remove := (static variables)
-- remove byte slices (this might be a little complicated -- have to see)
+- write up on sakai (in progress) 
 
+### FPGA Improvements 
+- make a branch + run through the parser and put the results 
 
