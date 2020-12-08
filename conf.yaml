@@ -11,3 +11,7 @@ WAN-Interface:
 Control-Packet: 
   IP: [10,0,0,2]
   Port: 80
+
+NAT: 
+  WAN-Routines: 1
+  LAN-Routines: 1

@@ -11,6 +11,7 @@ type Configurations struct {
 	LAN  Interface     `yaml:"LAN-Interface"`
 	WAN  Interface     `yaml:"WAN-Interface"`
 	Ctrl ControlPacket `yaml:"Control-Packet"`
+	NAT  NATSettings   `yaml:"NAT"`
 }
 
 type Interface struct {
@@ -23,6 +24,11 @@ type Interface struct {
 type ControlPacket struct {
 	IP   [4]byte `yaml:"IP"`
 	Port uint16  `yaml:"Port"`
+}
+
+type NATSettings struct {
+	WANRoutines int `yaml:"WAN-Routines"`
+	LANRoutines int `yaml:"LAN-Routines"`
 }
 
 var Configs Configurations
@@ -44,6 +50,7 @@ func ConfigureNAT() {
 		log.Fatalf("Interface Name cannot be empty string")
 	}
 
+	// Debugging Output
 	/* fmt.Println(Configs.LAN.Name)
 	fmt.Println(Configs.LAN.IP)
 
@@ -53,5 +60,8 @@ func ConfigureNAT() {
 	fmt.Printf("%#v\n", Configs.WAN.Dst)
 
 	fmt.Printf("%#v\n", Configs.Ctrl.IP)
-	fmt.Printf("%#v\n", Configs.Ctrl.Port) */
+	fmt.Printf("%#v\n", Configs.Ctrl.Port)
+
+	fmt.Printf("%d \n", Configs.NAT.WANRoutines)
+	fmt.Printf("%d \n", Configs.NAT.LANRoutines) */
 }

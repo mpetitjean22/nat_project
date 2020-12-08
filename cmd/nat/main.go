@@ -107,8 +107,8 @@ func main() {
 	fmt.Printf("LAN Packets on %s\n", nat.Configs.LAN.Name)
 	fmt.Printf("Silent Mode: %v\n", silentMode)
 
-	numLANGoRoutines := 1
-	numWANGoRoutines := 1
+	numLANGoRoutines := nat.Configs.NAT.LANRoutines
+	numWANGoRoutines := nat.Configs.NAT.WANRoutines
 
 	for i := 0; i < numLANGoRoutines; i++ {
 		readTunIfce := os.NewFile(fd, "tunIfce")
