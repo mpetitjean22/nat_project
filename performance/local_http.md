@@ -3,19 +3,25 @@
 I first set up a local HTTP server on my machine while the NAT was running inside of a VM. 
 
 ``` sh 
-# Start HTTP Server
+# Start HTTP Server on local machine
 $ python3 -m http.server 8080 --bind 0.0.0.0
 ```
 
-In order to test how the NAT responds to having to create many connections, I used httperf to gather information on my local HTTP server. This test will create a total of 8000 connections, and stops once all of the connections are either completed or a failed. A connection is considered to be failed if it any activity on the connection fails to make forward progress after 20 seconds (the timeout). Connections are created at a rate of 100 per second. 
+In order to test how the NAT responds to having to create many connections, I used httperf to gather information on my local HTTP server. The httperf test creates a total of 8000 connections and stops once all of the connections are either completed or have failed. A connection is considered to have failed if any activity on the connection fails to make forward progress after 20 seconds (the timeout). Connections are created at a rate of 100 connections per second. 
 
 ``` sh 
-# Run from inside the VM 
-httperf --server 10.0.0.123 --port 8080 --verbose --rate 100 --num-conn 8000 --timeout 20
+# run the test without the NAT
+$ httperf --server 10.0.0.123 --port 8080 --verbose --rate 100 --num-conn 8000 --timeout 20
 ```
 
-When we want the httperf to run through the NAT, then we must set an ip route to route packets through the tun2 interface. 
+When we want the httperf test to run connections through the NAT, then we must set an ip route to route packets destined for the local httpserver through the tun2 interface. 
 ``` sh 
+# set up and run the NAT
+$ make nat 
+$ sudo $(which nat) -S 
+$ source scripts/set-tun.sh 
+
+# add routing for http server 
 $ sudo ip route add 10.0.0.123 dev tun2
 ``` 
 
@@ -34,7 +40,7 @@ Connection time [ms]: min 34.8 avg 48.8 max 1197.5 median 46.5 stddev 23.8
 Connection time [ms]: connect 14.5
 ```
 
-We can see that the NAT is able to maintain sending out 100 connections per second similar to without a NAT. However, the number of concurrent connections is about half, 21 concurrect connection vs 51 concurrent connections. This is likely due to the NAT introducing some latency which reduces the number of concurrent connections possible. 
+We can see that the NAT is able to maintain sending out 100 connections per second similar to without a NAT. However, the number of concurrent connections is about half, 21 concurrent connection versus 51 concurrent connections. This is likely due to the NAT introducing some latency which reduces the number of concurrent connections possible. 
 
 Over the 8000 connections, the NAT introduced an additional 42.1 milliseconds per connection. The distribution of connection rates look similar, with similar stdevs and maximum values. The only increase appears in the minimum connection time and also average/median. 
 

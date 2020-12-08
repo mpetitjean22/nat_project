@@ -1,6 +1,6 @@
 # wget Performance Results 
 ## Process
-In order to test how the NAT is able to process many packets coming in and out through the same mapping, I set up a download test. In this test, we download a large file from the internet. This test is more focused on how the NAT is able to process packets. 
+In order to test how the NAT is able to process many packets coming in and out through the same connection, I set up a download test. In this test, we download a large file from the internet. This test is more focused on how the NAT is able to process packets. 
 
 ``` sh
 # download kernel 
@@ -23,18 +23,14 @@ This command is also in `scripts/demo.sh` which can be run to acheive the same r
 
 ``` sh 
 # No NAT
-/dev/null                             [           <=>                                               ] 176.70M  5.24MB/s    in 45s
-
 2020-12-05 13:42:03 (3.95 MB/s) - ‘/dev/null’ saved [185282209]
 
 # NAT
-/dev/null                             [          <=>                                                ] 176.70M  3.87MB/s    in 50s
-
 2020-12-05 13:39:30 (3.51 MB/s) - ‘/dev/null’ saved [185282209]
 
 ```
 
-We can see that after downloading 176.70 megabytes from `https://git.kernel.org`, going through the NAT has an average rate of download of 3.51 MB/s whereas without the NAT has an avergae rate of 3.95 MB/s. We also know that there is a difference of 5 seconds in the download time, which means that over the 176.80 MB, the NAT introduces 28 milliseconds per byte. Overall, the NAT remains effective even in downloading a large file from the internet. 
+We can see that after downloading 176.70 MB from `https://git.kernel.org`, going through the NAT has an average rate of download of 3.51 MB/s whereas without the NAT has an avergae rate of 3.95 MB/s. We also know that there is a difference of 5 seconds in the download time, which means that over 176.70 MB, the NAT introduces 28.2 milliseconds per MB, which is equivalent to only 0.282 ns per byte, which is a very small amount of latency. 
 
 
 # Data
