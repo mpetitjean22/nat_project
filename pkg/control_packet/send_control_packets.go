@@ -52,7 +52,7 @@ func SendAddMapping(srcIP []byte, dstIP []byte, srcPort []byte, dstPort []byte) 
 //         	-> 2 bytes: to Port
 func SendAddDestMapping(srcIP []byte, dstIP []byte, srcPort []byte, dstPort []byte) {
 	var payload []byte; 
-	payload  = append(payloa, 0x03);
+	payload  = append(payload, 0x03);
 	payload = append(payload, srcIP...);
 	payload = append(payload, dstIP...);
 	payload = append(payload, srcPort...);
@@ -72,8 +72,8 @@ func SendListMappings() {
 
 func createControlPacket(payload []byte) []byte {
 	// Start: Not FPGA Friendly 
-	// var ipLayer *layers.IPv4; 		// does not like "layers.IPv4" 
-	// var udpLayer *layers.UDP; 		// or "layers.UDP"
+	// var ipLayer layers.IPv4; 		// does not like "layers.IPv4" 
+	// var udpLayer layers.UDP; 		// or "layers.UDP"
 	// End 
 
 	// Start: Replacement that runs through parser 
@@ -89,15 +89,15 @@ func createControlPacket(payload []byte) []byte {
 
 	udpLayer.SrcPort = layers.UDPPort(80); 
 	udpLayer.DstPort = layers.UDPPort(nat.Configs.Ctrl.Port); 
-	udpLayer.SetNetworkLayerForChecksum(ipLayer);
+	udpLayer.SetNetworkLayerForChecksum(&ipLayer);
 
 	// Start: Runs through parser 
 	var buffer SerializeBuffer; // should be "gopacket.SerializeBuffer" but that does not parse  
 	// End
 	buffer = gopacket.NewSerializeBuffer(); 	// buffer is a global variables but global variables do not seem parseable 
 	gopacket.SerializeLayers(buffer, options,
-		ipLayer,
-		udpLayer,
+		&ipLayer,
+		&udpLayer,
 		gopacket.Payload(payload),
 	);
 	outgoingPacket := buffer.Bytes();
