@@ -3,37 +3,39 @@
  * that they indicate.
  */
 
-package control_packet
+package control_packet;
 
-import (
-	"fmt"
-	"nat_project/pkg/nat"
-	"nat_project/pkg/process_packet"
-)
+import ("fmt");
+import ("nat_project/pkg/nat"); 
+import ("nat_project/pkg/process_packet"); 
 
 // ProcessControlPacket processes the control packets where IP/Port is specified in Config.yaml
-func ProcessControlPacket(packet []byte, outboundNat nat.NAT, inboundNat nat.NAT) {
-	ihl := uint8(packet[0]) & 0x0F
-	payload := packet[8+(ihl*4):]
-	controlType := payload[0]
+
+// Start: Parse Friendly Verion
+func ProcessControlPacket(packet []byte, outboundNat NAT, inboundNat NAT) {
+// End
+// func ProcessControlPacket(packet []byte, outboundNat nat.NAT, inboundNat nat.NAT) {
+	ihl := uint8(packet[0]) & 0x0F;
+	payload := packet[8+(ihl*4):];
+	controlType := payload[0];
 
 	if controlType == 1 || controlType == 3 {
-		srcIP := process_packet.FourByteCopy(payload, 1)
-		srcPort := process_packet.TwoByteCopy(payload, 5)
+		srcIP := process_packet.FourByteCopy(payload, 1);
+		srcPort := process_packet.TwoByteCopy(payload, 5);
 
-		dstIP := process_packet.FourByteCopy(payload, 7)
-		dstPort := process_packet.TwoByteCopy(payload, 11)
+		dstIP := process_packet.FourByteCopy(payload, 7);
+		dstPort := process_packet.TwoByteCopy(payload, 11);
 
 		if controlType == 1 {
-			outboundNat.AddMapping(srcIP, srcPort, dstIP, dstPort)
+			outboundNat.AddMapping(srcIP, srcPort, dstIP, dstPort);
 		} else {
-			inboundNat.AddMapping(srcIP, srcPort, dstIP, dstPort)
-		}
+			inboundNat.AddMapping(srcIP, srcPort, dstIP, dstPort);
+		};
 	} else if controlType == 2 {
-		fmt.Println("Outbound")
-		outboundNat.PrettyPrintTable()
+		fmt.Println("Outbound");
+		outboundNat.PrettyPrintTable();
 
-		fmt.Println("Inbound")
-		inboundNat.PrettyPrintTable()
-	}
-}
+		fmt.Println("Inbound");
+		inboundNat.PrettyPrintTable();
+	};
+};
