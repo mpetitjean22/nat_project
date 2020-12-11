@@ -1,161 +1,56 @@
-# NAT Project
+# NAT Project Through FPGA Parser
 
-### Table of Contents
-- [Demo Instructions](#Demo)
-- [Configuations](#Configuations)
-- [NAT](#NAT)
-    * [Capturing Packets](#Capturing-Packets)
-    * [Options](#Running-NAT)
-- [Control Packets](#Control-Packets)
-    * [Control CLI](#Control-CLI)
-- [Tests](#Tests)
-- [Remaining Work](#Remaining-Work)
-    * [General Improvements](#General-Improvements)
-    * [FPGA Improvements](#FPGA-Improvements)
+To view the implementation that currently works please refer to master. 
 
-
-## Demo 
-
-Make and run `nat`. The `-S` option can be used to put the nat in silent mode. 
-``` sh 
-$ make nat
-# if you get "command not found" run "source ./scripts/add-to-path.sh"
-# without silent mode: 
-$ sudo $(which nat)
-# with silent mode: 
-$ sudo $(which nat) -S
-``` 
-
-Configure the TUN interface: 
-``` sh 
-$ source scripts/set-tun.sh
-``` 
-
-Add IP Routes for google and wikipedia, which will run packets through the NAT. 
-``` sh 
-$ source scripts/demo.sh
-```
-
-Run a curl command to google: 
-```sh 
-$ sudo curl --verbose --interface tun2 -ipv4 https://www.google.com
-``` 
-
-Open lynx and browse google and wikipedia: 
-```sh 
-$ lynx google.com
-``` 
-
-Optionally open `tcpdump` to view packets passing through the two interfaces! 
+This branch is intended to see how the code runs through the parser with adjustments to work with the current FPGA parser. In some places code is commented out and replaced with versions that will parse through the parser but that are not functional. As a result, this branch does not run as is! 
 
 --- 
-## Configuations 
-In order to make the NAT and Control programs easier to use, the `config.yaml` file allows the user to easily change and specify configuations. 
+### Runs Through Parser and Functional 
+These are files that both run through the parser sucessfully and are fully functional. 
 
-``` 
-LAN-Interface:          # specifies tun interface
-  Name: tun2            # name of tun interface that is created
-  IP: [10,0,0,1]        # ip address of the tunu interface 
-  
-WAN-Interface:          # specifies eth interface 
-  Name: enp0s3
-  IP: [10,0,2,15]
-  Src-MAC: [0x52,0x54,0x00,0x12,0x35,0x02]
-  Dst-MAC: [0x08,0x00,0x27,0xfd,0x06,0x32]
+* `./pkg/process_packet/checksum.go`
+* `./pkg/process_packet/copy_functions.go`
+* `./pkg/process_packet/create_packets.go`
+* `./pkg/process_packet/process_packets.go`
 
-Control-Packet: 
-  IP: [10,0,0,2]        # dest IP of the control packets 
-  Port: 80              # dest Port of the control packets 
-
-NAT: 
-  WAN-Routines: 1       # number of routines (still in testing)
-  LAN-Routines: 1
-```
-It is important to note that these values are not validated for correctness so it is up to the user to provide configurations that are correct. Additionally, `tun2` is the tun name used in the scripts, so if you change this value be sure to change the scripts or do not use them. 
+* `./cmd/control/main.go`
 
 --- 
-## NAT 
-### Capturing Packets 
-The NAT listens on two interfaces. The TUN (tun2) interface is considered the LAN side of the network while the eth interface (enp0s3) is considered the WAN side of the network. 
+### Runs through Parser but needs Modifications to be Functional 
+These are files that run through the parser sucessfully but some lines have been modified/removed in order to do so. As a result, functionality has been sacraficed, but with some improvements to the FPGA parser and minor modifications to the code they will work sucessfully. 
 
-By default, the NAT will use dynamic mapping in order to create mappings from a specific LAN IP and Port to a WAN IP and Port. The NAT also takes control packets which allows the user to add static mappings for both the WAN and LAN side of the NAT. 
+Look into each file to see what specifically needs to be modified or improved. I put a lot of effort to be specific about what does not work with the parser. 
 
-### Running NAT 
-First you must make the nat and make sure that you have root privileges. 
-``` sh 
-$ make nat
-# if you get "command not found" run "source ./scripts/add-to-path.sh"
-$ sudo $(which nat)
-```
+* `./pkg/control_packet/process_control_packets.go`
+* `./pkg/control_packet/send_control_packets.go`
+* `./pkg/get_packets/get_packets.go `
+* `./cmd/nat/listen.go`
+* `./cmd/nat/main.go`
+* `./pkg/nat/nat.go`
 
-You can run the NAT with a couple options which are specified as: 
-``` sh
-Options for Running NAT:
-   -S
-      Silent Mode silences printing out packets when mappings are found
-   --static-mapping
-      Disables dynamic mapping and only allows for mappings to be added with control packets
-```
+## Improvements that are Needed from Parser 
 
-The NAT will run continuously until it is closed with `^C`. 
+* Supporting argument types that have a `.` in it. 
+  * For example, in `./cmd/nat/listen.go` on line 14, `func listenWAN(packetSource *get_packets.PacketSource, writeTunIfce io.ReadWriteCloser, silentMode bool) {` does not parse, but when `get_packets.PacketSource` is modified to just be `PacketSource` it does parse. This is a problem consistantly throughout many files (all instances have comments in their files). 
 
----
-## Control Packets 
 
-Control is a command line tool which allows us to create and send fully formed control packets to the NAT program. The control packets are IPv4 on top of UDP, with a special payload format. 
+* Defer statements. I use there frequently and are very handy. 
+* Blocks of global variables.
+  * For example, on lines 18-22 in `./cmd/nat/main.go` I have a var block which covers multiple variables similar to `import`. When I seperated them out, it would not get through the parser either.
 
-IPv4 Header:
-* Source IP: 8.8.8.8
+* Passing strings as arguments of functions 
+  * On line 155 in `./cmd/nat/maing.go` I have `readTunIfce := os.NewFile(fd, "tunIfce");` which gets the error `primitive type failed for node 1371` when I attempt to run it through the parser. Commenting it out has eliminated the error.
 
-UDP Header: 
-* Source Port: 80
+* Creating structs did not seem to parse correctly 
+  * For example, see `./pkg/get_packets/get_packets.go` on lines 18-20 
 
-Payload: 
-* Control Type (1 Byte)
-    * 0x01 = Add Mapping (LAN -> WAN) 
-    * 0x02 = List Mappings 
-    * 0x03 = Add Mapping (WAN -> LAN) 
-* From IP (4 Bytes) 
-* To IP (4 Bytes) 
-* From Port (2 Bytes)
-    * A source port of 0 will be considered as a wildcard and will only match the source IP 
-* To Port (2 Bytes) 
+* Creating and having interfaces 
+  * For an interface, the function are written as `// func (nat *Table) PrettyPrintTable() {` but this was not parsed properly, instead they were changed to `func PrettyPrintTable(nat *Table) {` which went through the parser but is not fully functional (would have to refactor other parts of the codebase). But I think supporting interfaces is a pretty important part of writing code in Go. 
 
-### Control CLI 
+### Not Intended to Run on FPGA 
+These are files which are not intended to run on the FPGA but were instead built to make an easier developer experience on CPU. 
 
-The program provides a Command Line Interface for creating and sending control packets with the proper format as described above.
-```sh
-$ make control
- # if you get "command not found" run "source ./scripts/add-to-path.sh"
-$ sudo $(which control)
-Error: Invalid Number of Arguments
-Looking for: (control type)
-   control types:
-       2 -> list current mappings
-Looking for: (control type) (fromIP) (fromPort) (toIP) (toPort)
-   control types:
-       1 -> add outbound mapping
-       3 -> add inbound mapping
-```
-
-Sending a control packet to list mappings would look like: 
-``` sh 
-$ sudo $(which control) 2
-```
-
-Sending a packet to create a LAN to WAN mapping would look like: 
-``` sh 
-$ sudo $(which control) 1 1.1.1.1 80 2.2.2.2 80 
-```
---- 
-## Tests
-There are test files implemented in order to verify the functionality of every part of the project. They are located in each of the subdirectories in `pkg`, and end with `_test.go`. 
-
----
-## Remaining Work
-### General Improvements
-- write up on sakai (in progress) 
-
-### FPGA Improvements 
-- make a branch + run through the parser and put the results 
-
+* `./pkg/process_packet/process_packet_test.go`
+* `./pkg/control_packet/control_packet_test.go`
+* `./pkg/nat/config.go`
+* `./pkg/nat/nat_test.go`
